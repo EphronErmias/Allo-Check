@@ -1,4 +1,5 @@
 import "dotenv/config";
+import dns from "node:dns";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
@@ -11,6 +12,10 @@ import { healthRouter } from "./routes/health.js";
 const PORT = Number(process.env.PORT) || 4000;
 const DATABASE_URL = process.env.DATABASE_URL;
 const CORS_ORIGIN = process.env.CORS_ORIGIN ?? "*";
+
+// Supabase hosts may resolve dual-stack records; prefer IPv4 first to avoid
+// ENETUNREACH in environments without outbound IPv6 routing.
+dns.setDefaultResultOrder("ipv4first");
 
 if (!DATABASE_URL) {
   throw new Error("DATABASE_URL is required");
