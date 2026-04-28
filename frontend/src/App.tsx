@@ -16,8 +16,8 @@ type LookupResult = {
   message?: string;
 };
 
-const apiBase =
-  import.meta.env.VITE_API_URL?.replace(/\/$/, "") ?? "http://localhost:4000";
+const rawApiUrl = import.meta.env.VITE_API_URL?.trim() ?? "http://localhost:4000";
+const apiBase = rawApiUrl.replace(/\/api\/v1\/?$/i, "").replace(/\/$/, "");
 
 const partnersBannerSrc =
   import.meta.env.VITE_PARTNERS_BANNER_URL?.trim() || "/partners-banner.svg";
@@ -661,10 +661,7 @@ export default function App() {
       </section>
 
       <footer className="border-t border-zinc-200 bg-white px-4 py-10 text-center text-xs text-zinc-500 sm:px-6">
-        <p>
-          AlloCheck — device verification. Set <code className="rounded bg-zinc-100 px-1">VITE_API_URL</code> for
-          production builds.
-        </p>
+        <p>AlloCheck — device verification.</p>
       </footer>
     </div>
   );
