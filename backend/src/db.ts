@@ -1,6 +1,4 @@
-import fs from "node:fs";
-import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
+import { Pool } from "pg";
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS devices (
@@ -12,30 +10,32 @@ CREATE TABLE IF NOT EXISTS devices (
   model TEXT,
   device_name TEXT,
   registered_by_partner_id TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS device_search_logs (
   id TEXT PRIMARY KEY,
   query_imei TEXT,
   query_serial TEXT,
-  found INTEGER NOT NULL,
+  found BOOLEAN NOT NULL,
   result_status TEXT NOT NULL,
   display_level TEXT NOT NULL,
   result_message TEXT,
   device_id TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_device_search_logs_created ON device_search_logs(created_at);
 `;
 
-export function openDb(sqlitePath: string): DatabaseSync {
-  const resolved = path.resolve(sqlitePath);
-  fs.mkdirSync(path.dirname(resolved), { recursive: true });
-  const db = new DatabaseSync(resolved);
-  db.exec("PRAGMA journal_mode = WAL;");
-  db.exec(SCHEMA);
-  return db;
+export function createDbPool(connectionString: string): Pool {
+  return new Pool({
+    connectionString,
+    ssl: { rejectUnauthorized: false },
+  });
+}
+
+export async function initDb(pool: Pool): Promise<void> {
+  await pool.query(SCHEMA);
 }

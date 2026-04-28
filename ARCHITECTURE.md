@@ -1,12 +1,10 @@
 # AlloCheck
 
-Simple stack: **Node.js (Express) + SQLite** API and **Vite + React 19 + TypeScript + Tailwind 4** web app.
-
-The API uses Node’s built-in **`node:sqlite`** (`DatabaseSync`), so **Node.js ≥ 22.5** is required and there is **no** native `better-sqlite3` build step. You may see an experimental SQLite warning on startup; that is expected until the API stabilizes.
+Simple stack: **Node.js (Express) + Postgres** API and **Vite + React 19 + TypeScript + Tailwind 4** web app.
 
 ## Layout
 
-- `backend/` — REST API (`/api/v1/devices/lookup`, `/api/v1/health`), SQLite via `better-sqlite3`, demo seed on empty DB.
+- `backend/` — REST API (`/api/v1/devices/lookup`, `/api/v1/health`), Postgres via `pg`, demo seed on empty DB.
 - `frontend/` — marketing + IMEI/serial lookup UI.
 - `database/schema.sql` — SQLite reference DDL (mirrors what the API creates at startup).
 
@@ -20,7 +18,7 @@ The API uses Node’s built-in **`node:sqlite`** (`DatabaseSync`), so **Node.js 
    npm run dev
    ```
 
-   Default: `http://localhost:4000`, DB file `data/allocheck.sqlite` (configurable via `SQLITE_PATH`).
+   Default: `http://localhost:4000`, Postgres connection from `DATABASE_URL`.
 
 2. **Web** — from `frontend/`:
 
@@ -37,7 +35,7 @@ The API uses Node’s built-in **`node:sqlite`** (`DatabaseSync`), so **Node.js 
 | Variable        | Where    | Purpose                          |
 |----------------|----------|----------------------------------|
 | `PORT`         | backend  | HTTP port (default `4000`)       |
-| `SQLITE_PATH`  | backend  | SQLite file path               |
+| `DATABASE_URL` | backend  | Postgres connection string     |
 | `CORS_ORIGIN`  | backend  | `*` or comma-separated origins |
 | `VITE_API_URL` | frontend | API base URL                    |
 | `VITE_PARTNERS_BANNER_URL` | frontend | Optional partners hero image URL |

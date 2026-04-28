@@ -15,11 +15,11 @@ export function devicesRouter(lookup: LookupService): Router {
   r.get(
     "/lookup",
     lookupLimiter,
-    (req, res, next) => {
+    async (req, res, next) => {
       try {
         const imei = req.query.imei as string | undefined;
         const serial = req.query.serial as string | undefined;
-        const out = lookup.lookupByQuery({ imei, serial });
+        const out = await lookup.lookupByQuery({ imei, serial });
         res.json(out);
       } catch (e) {
         next(e);

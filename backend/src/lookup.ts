@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { DatabaseSync } from "node:sqlite";
+import type { Pool } from "pg";
 import {
   DISPLAY_EMPTY,
   formatReportedDate,
@@ -20,7 +20,7 @@ function parseRowDate(s: string): Date {
 }
 
 export class LookupService {
-  constructor(private readonly db: DatabaseSync) {}
+  constructor(private readonly db: Pool) {}
 
   private resolveDeviceName(device: DeviceRow): string {
     const explicit = device.device_name?.trim();
@@ -108,70 +108,73 @@ export class LookupService {
     };
   }
 
-  private recordSearchLog(
+  private async recordSearchLog(
     res: DeviceLookupResponse,
     queryImei: string | null,
     querySerial: string | null,
-  ): void {
+  ): Promise<void> {
     try {
-      this.db
-        .prepare(
-          `INSERT INTO device_search_logs (id, query_imei, query_serial, found, result_status, display_level, result_message, device_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .run(
+      await this.db.query(
+        `INSERT INTO device_search_logs (id, query_imei, query_serial, found, result_status, display_level, result_message, device_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
           randomUUID(),
           queryImei,
           querySerial,
-          res.found ? 1 : 0,
+          res.found,
           res.status ?? DeviceStatus.UNREGISTERED_UNKNOWN,
           res.displayLevel ?? DisplayLevel.WARNING,
           res.notes ?? res.message ?? null,
           res.deviceId ?? null,
-        );
+        ],
+      );
     } catch (e) {
       console.warn("Failed to persist search log:", e);
     }
   }
 
-  lookupByQuery(query: { imei?: string; serial?: string }): DeviceLookupResponse {
+  async lookupByQuery(query: { imei?: string; serial?: string }): Promise<DeviceLookupResponse> {
     const hasImei = query.imei != null && String(query.imei).trim().length > 0;
     const hasSerial = query.serial != null && String(query.serial).trim().length > 0;
 
     if (!hasImei && !hasSerial) {
       const res = this.buildMissingQuery();
-      this.recordSearchLog(res, null, null);
+      await this.recordSearchLog(res, null, null);
       return res;
     }
 
     if (hasImei) {
       const imei = normalizeImei(query.imei!);
-      const stmt = this.db.prepare(
-        `SELECT id, imei, serial_number, status, manufacturer, model, device_name, updated_at FROM devices WHERE imei = ?`,
+      const row = await this.db.query<DeviceRow>(
+        `SELECT id, imei, serial_number, status, manufacturer, model, device_name, updated_at::text
+         FROM devices WHERE imei = $1`,
+        [imei],
       );
-      const device = stmt.get(imei) as DeviceRow | undefined;
+      const device = row.rows[0];
       const res = device
         ? this.buildFound(device)
         : this.buildNotFound({ queryImei: imei, querySerial: null });
-      this.recordSearchLog(res, imei, null);
+      await this.recordSearchLog(res, imei, null);
       return res;
     }
 
     const serial = normalizeSerial(query.serial);
     if (!serial) {
       const res = this.buildInvalidSerial();
-      this.recordSearchLog(res, null, null);
+      await this.recordSearchLog(res, null, null);
       return res;
     }
 
-    const stmt = this.db.prepare(
-      `SELECT id, imei, serial_number, status, manufacturer, model, device_name, updated_at FROM devices WHERE serial_number = ?`,
+    const row = await this.db.query<DeviceRow>(
+      `SELECT id, imei, serial_number, status, manufacturer, model, device_name, updated_at::text
+       FROM devices WHERE serial_number = $1`,
+      [serial],
     );
-    const device = stmt.get(serial) as DeviceRow | undefined;
+    const device = row.rows[0];
     const res = device
       ? this.buildFound(device)
       : this.buildNotFound({ queryImei: null, querySerial: serial });
-    this.recordSearchLog(res, null, serial);
+    await this.recordSearchLog(res, null, serial);
     return res;
   }
 }

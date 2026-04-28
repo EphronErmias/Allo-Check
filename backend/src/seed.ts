@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { DatabaseSync } from "node:sqlite";
+import type { Pool } from "pg";
 import { DeviceStatus } from "./enums.js";
 
 const DEMO: Array<{
@@ -52,33 +52,26 @@ const DEMO: Array<{
   },
 ];
 
-export function seedIfEmpty(db: DatabaseSync): void {
-  const row = db.prepare("SELECT COUNT(*) as c FROM devices").get() as { c: number | bigint };
-  const n = typeof row.c === "bigint" ? Number(row.c) : row.c;
+export async function seedIfEmpty(db: Pool): Promise<void> {
+  const row = await db.query<{ c: string }>("SELECT COUNT(*)::text as c FROM devices");
+  const n = Number(row.rows[0]?.c ?? "0");
   if (n > 0) return;
-
-  const insert = db.prepare(
-    `INSERT INTO devices (id, imei, serial_number, status, manufacturer, model, device_name, registered_by_partner_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, NULL)`,
-  );
-
-  db.exec("BEGIN IMMEDIATE;");
+  const client = await db.connect();
   try {
+    await client.query("BEGIN");
     for (const d of DEMO) {
-      insert.run(
-        randomUUID(),
-        d.imei,
-        d.serialNumber,
-        d.status,
-        d.manufacturer,
-        d.model,
-        d.deviceName,
+      await client.query(
+        `INSERT INTO devices (id, imei, serial_number, status, manufacturer, model, device_name, registered_by_partner_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NULL)`,
+        [randomUUID(), d.imei, d.serialNumber, d.status, d.manufacturer, d.model, d.deviceName],
       );
     }
-    db.exec("COMMIT;");
+    await client.query("COMMIT");
   } catch (e) {
-    db.exec("ROLLBACK;");
+    await client.query("ROLLBACK");
     throw e;
+  } finally {
+    client.release();
   }
 
   console.log(
