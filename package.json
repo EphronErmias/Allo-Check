@@ -1,0 +1,10 @@
+{
+  "name": "allocheck",
+  "private": true,
+  "scripts": {
+    "postinstall": "npm install --prefix backend",
+    "build": "npm run build --prefix backend",
+    "start": "npm run start --prefix backend",
+    "dev": "npm run dev --prefix backend"
+  }
+}
