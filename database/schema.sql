@@ -26,3 +26,12 @@ CREATE TABLE IF NOT EXISTS device_search_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_device_search_logs_created ON device_search_logs(created_at);
+
+CREATE TABLE IF NOT EXISTS lookup_result_shares (
+  id TEXT PRIMARY KEY,
+  payload JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_lookup_result_shares_expires ON lookup_result_shares(expires_at);

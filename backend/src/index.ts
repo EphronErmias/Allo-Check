@@ -8,6 +8,7 @@ import { LookupService } from "./lookup.js";
 import { seedIfEmpty } from "./seed.js";
 import { devicesRouter } from "./routes/devices.js";
 import { healthRouter } from "./routes/health.js";
+import { sharesRouter } from "./routes/shares.js";
 
 const PORT = Number(process.env.PORT) || 4000;
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -28,6 +29,7 @@ async function main(): Promise<void> {
   const lookup = new LookupService(db);
 
   const app = express();
+  app.use(express.json({ limit: "50kb" }));
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
   app.use(
     cors({
@@ -38,6 +40,7 @@ async function main(): Promise<void> {
   const api = express.Router();
   api.use("/health", healthRouter());
   api.use("/devices", devicesRouter(lookup));
+  api.use("/shares", sharesRouter(db));
   app.use("/api/v1", api);
 
   app.use(

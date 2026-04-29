@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import {
   DISPLAY_EMPTY,
-  formatReportedDate,
   notesForRegistryStatus,
   notesInvalidSerial,
   notesMissingQuery,
@@ -12,12 +11,6 @@ import {
 import { DeviceStatus, DisplayLevel, statusToDisplayLevel } from "./enums.js";
 import type { DeviceLookupResponse, DeviceRow } from "./types.js";
 import { normalizeImei, normalizeSerial } from "./validation.js";
-
-function parseRowDate(s: string): Date {
-  const d = new Date(s);
-  if (Number.isNaN(d.getTime())) return new Date();
-  return d;
-}
 
 export class LookupService {
   constructor(private readonly db: Pool) {}
@@ -43,7 +36,6 @@ export class LookupService {
       imei: device.imei,
       serialNumber: device.serial_number?.trim() || DISPLAY_EMPTY,
       statusLabel: statusLabelFor(status),
-      reportedDate: formatReportedDate(parseRowDate(device.updated_at)),
       notes,
       message: notes,
       manufacturer: device.manufacturer,
@@ -66,7 +58,6 @@ export class LookupService {
       imei: ctx.queryImei ?? DISPLAY_EMPTY,
       serialNumber: ctx.querySerial ?? DISPLAY_EMPTY,
       statusLabel: DISPLAY_EMPTY,
-      reportedDate: null,
       notes,
       message: notes,
     };
@@ -84,7 +75,6 @@ export class LookupService {
       imei: DISPLAY_EMPTY,
       serialNumber: DISPLAY_EMPTY,
       statusLabel: DISPLAY_EMPTY,
-      reportedDate: null,
       notes,
       message: notes,
     };
@@ -102,7 +92,6 @@ export class LookupService {
       imei: DISPLAY_EMPTY,
       serialNumber: DISPLAY_EMPTY,
       statusLabel: DISPLAY_EMPTY,
-      reportedDate: null,
       notes,
       message: notes,
     };
@@ -146,7 +135,7 @@ export class LookupService {
     if (hasImei) {
       const imei = normalizeImei(query.imei!);
       const row = await this.db.query<DeviceRow>(
-        `SELECT id, imei, serial_number, status, manufacturer, model, device_name, updated_at::text
+        `SELECT id, imei, serial_number, status, manufacturer, model, device_name
          FROM devices WHERE imei = $1`,
         [imei],
       );
@@ -166,7 +155,7 @@ export class LookupService {
     }
 
     const row = await this.db.query<DeviceRow>(
-      `SELECT id, imei, serial_number, status, manufacturer, model, device_name, updated_at::text
+      `SELECT id, imei, serial_number, status, manufacturer, model, device_name
        FROM devices WHERE serial_number = $1`,
       [serial],
     );

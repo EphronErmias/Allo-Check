@@ -2,13 +2,6 @@ import { DeviceStatus } from "./enums.js";
 
 export const DISPLAY_EMPTY = "—";
 
-export function formatReportedDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
 export function statusLabelFor(status: DeviceStatus): string {
   switch (status) {
     case DeviceStatus.CLEAN:

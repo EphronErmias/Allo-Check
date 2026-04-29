@@ -10,7 +10,6 @@ export type DeviceLookupResponse = {
   imei?: string;
   serialNumber?: string;
   statusLabel?: string;
-  reportedDate?: string | null;
   notes?: string;
   message?: string;
   manufacturer?: string | null;
@@ -25,5 +24,4 @@ export type DeviceRow = {
   manufacturer: string | null;
   model: string | null;
   device_name: string | null;
-  updated_at: string;
 };

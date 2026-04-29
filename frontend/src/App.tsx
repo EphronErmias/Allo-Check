@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type DisplayLevel = "SAFE" | "WARNING" | "BLOCKED";
 
@@ -11,7 +11,6 @@ type LookupResult = {
   imei?: string;
   serialNumber?: string;
   statusLabel?: string;
-  reportedDate?: string | null;
   notes?: string;
   message?: string;
 };
@@ -41,6 +40,37 @@ const btnPrimary =
 
 const btnPartnerCta =
   "group inline-flex items-center justify-center gap-2 rounded-none bg-gradient-to-r from-cyan-400 to-cyan-300 px-8 py-3.5 text-base font-semibold text-blue-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-300 hover:to-cyan-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300";
+
+/** Same partner gradient as `btnPartnerCta`, sized to match footer row actions (e.g. Share result). */
+const btnPartnerCtaRow =
+  "group inline-flex w-full items-center justify-center gap-2 rounded-none bg-gradient-to-r from-cyan-400 to-cyan-300 px-6 py-3 text-sm font-semibold text-blue-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-300 hover:to-cyan-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 sm:w-auto";
+
+const loadingMessages = [
+  "Searching...",
+  "Searching all databases...",
+  "Searching international databases...",
+];
+
+function parseShareTokenFromHash(): string | null {
+  const raw = window.location.hash.replace(/^#\/?/, "").trim();
+  if (!raw.toLowerCase().startsWith("share/")) return null;
+  const token = raw.slice(6).split(/[/?#]/)[0]?.trim() ?? "";
+  if (!/^[a-f0-9]{48}$/i.test(token)) return null;
+  return token;
+}
+
+function buildPublicOrigin(): string {
+  const env = import.meta.env.VITE_APP_ORIGIN?.trim();
+  if (env) return env.replace(/\/$/, "");
+  return window.location.origin;
+}
+
+function buildShareUrl(token: string): string {
+  const origin = buildPublicOrigin();
+  const path = window.location.pathname || "/";
+  const search = window.location.search || "";
+  return `${origin}${path}${search}#/share/${token}`;
+}
 
 function ArrowRight({ className }: { className?: string }) {
   return (
@@ -172,7 +202,7 @@ function tierIconWrap(tier: StatusTier): string {
 }
 
 function StatusGlyphByTier({ tier }: { tier: StatusTier }) {
-  const common = "h-7 w-7 shrink-0";
+  const common = "h-6 w-6 shrink-0";
   switch (tier) {
     case "clean":
       return (
@@ -211,13 +241,15 @@ function ResultField({
   label,
   value,
   mono,
+  className = "",
 }: {
   label: string;
   value: string | null | undefined;
   mono?: boolean;
+  className?: string;
 }) {
   return (
-    <div className="rounded-none border border-zinc-100 bg-white px-4 py-3.5 shadow-sm shadow-zinc-900/5 sm:px-5">
+    <div className={`border-b border-zinc-200 py-3.5 sm:py-4 ${className}`}>
       <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-blue-600/90">{label}</p>
       <p
         className={`mt-1.5 text-[0.95rem] font-medium leading-snug text-zinc-900 ${mono ? "font-mono text-sm tracking-tight" : ""}`}
@@ -230,101 +262,73 @@ function ResultField({
 
 function LookupResultCard({
   result,
-  notes,
+  className = "mt-10",
 }: {
   result: LookupResult;
-  notes: string | undefined;
+  className?: string;
 }) {
   const tier = resolveStatusTier(result);
   const tierStyle = TIER_COPY[tier];
   const grad = tierHeaderGradient(tier);
-  const registryLabel = result.found ? "In AlloCheck registry" : "Not in registry";
 
   return (
     <div
-      className="mt-10 overflow-hidden rounded-none bg-white shadow-[0_20px_50px_-12px_rgba(37,99,235,0.18)] ring-1 ring-zinc-200/80"
+      className={`${className} mx-auto w-full max-w-3xl overflow-hidden rounded-none border border-zinc-200 bg-white shadow-sm`}
       role="region"
       aria-label="Verification result"
     >
-      <div className={`relative bg-gradient-to-br ${grad} px-6 py-8 sm:px-8 sm:py-9`}>
+      <div className={`relative bg-gradient-to-br ${grad} px-4 py-4 sm:px-5 sm:py-5`}>
         <div
           className={`pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_80%_at_100%_0%,rgba(255,255,255,0.22),transparent)] ${tier === "unknown" ? "opacity-90" : ""}`}
         />
         <div className="relative">
           <p
-            className={`text-[0.65rem] font-semibold uppercase tracking-[0.22em] ${tier === "unknown" ? "text-amber-950/70" : "text-white/80"}`}
+            className={`text-[0.6rem] font-semibold uppercase tracking-[0.18em] ${tier === "unknown" ? "text-amber-950/70" : "text-white/80"}`}
           >
             Status
           </p>
-          <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex min-w-0 gap-4">
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-start">
+            <div className="flex min-w-0 gap-3">
               <div
-                className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-none ring-2 backdrop-blur-sm ${tierIconWrap(tier)}`}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-none ring-2 backdrop-blur-sm ${tierIconWrap(tier)}`}
               >
                 <StatusGlyphByTier tier={tier} />
               </div>
               <div className="min-w-0">
-                <h3 className={`text-2xl font-bold tracking-tight sm:text-3xl ${tierTextPrimary(tier)}`}>
+                <h3 className={`text-xl font-bold tracking-tight sm:text-2xl ${tierTextPrimary(tier)}`}>
                   {tierStyle.title}
                 </h3>
                 {result.statusLabel && (
-                  <p className={`mt-1 text-sm font-semibold sm:text-base ${tierTextMuted(tier)}`}>
+                  <p className={`mt-0.5 text-xs font-semibold sm:text-sm ${tierTextMuted(tier)}`}>
                     {result.statusLabel}
                   </p>
                 )}
-                <p className={`mt-3 max-w-xl text-sm leading-relaxed sm:text-[0.95rem] ${tierTextMuted(tier)}`}>
+                <p className={`mt-1.5 max-w-none text-xs leading-snug sm:text-sm ${tierTextMuted(tier)}`}>
                   {tierStyle.blurb}
                 </p>
               </div>
             </div>
-            <span
-              className={`inline-flex w-fit shrink-0 rounded-none px-4 py-2 text-xs font-bold shadow-md ring-2 ${
-                tier === "unknown"
-                  ? "bg-amber-950/10 text-amber-950 ring-amber-950/25"
-                  : "bg-white/95 text-zinc-900 ring-white/50"
-              }`}
-            >
-              {registryLabel}
-            </span>
           </div>
         </div>
       </div>
 
-      <div className="border-t border-zinc-100 bg-gradient-to-b from-zinc-50/90 to-white px-5 py-6 sm:px-8 sm:py-8">
-        <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-zinc-500">Device details</p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div className="border-t border-zinc-200 bg-white px-5 py-2 sm:px-8 sm:py-3">
+        <p className="pt-4 text-[0.65rem] font-semibold uppercase tracking-wider text-zinc-500">Device details</p>
+        <div className="mt-1 grid sm:grid-cols-2 sm:gap-x-8">
           <ResultField label="Device name" value={result.deviceName} />
           <ResultField label="Brand" value={result.brand} />
-          <ResultField label="IMEI" value={result.imei} mono />
-          <ResultField label="Serial number" value={result.serialNumber} mono />
-          <div className="sm:col-span-2">
-            <ResultField label="Reported date" value={result.reportedDate ?? undefined} />
-          </div>
+          <ResultField label="IMEI" value={result.imei} mono className="sm:border-b-0" />
+          <ResultField label="Serial number" value={result.serialNumber} mono className="border-b-0" />
         </div>
-
-        <div className="mt-6 rounded-none border border-cyan-100/90 bg-gradient-to-br from-cyan-50 via-white to-blue-50/60 p-5 shadow-inner shadow-blue-900/5 sm:p-6">
-          <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-blue-700/80">Notes</p>
-          <p className="mt-3 text-sm leading-relaxed text-zinc-700">{notes && notes.trim() !== "" ? notes : "—"}</p>
-        </div>
-
-        <p className="mt-6 border-t border-zinc-100 pt-5 text-xs text-zinc-500">
-          Results reflect the AlloCheck registry at the time of lookup.
-        </p>
       </div>
     </div>
   );
 }
 
 /** Shown when lookup resolves to Not Registered / Unknown — replaces the form + standard result card. */
-function UnknownNotRegisteredPanel({
-  shopUrl,
-  onCheckAnother,
-}: {
-  shopUrl: string;
-  onCheckAnother: () => void;
-}) {
+function UnknownNotRegisteredPanel({ shopUrl }: { shopUrl: string }) {
   return (
-    <div className="text-center sm:text-left">
+    <div className="mx-auto w-full max-w-3xl text-center sm:text-left">
       <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-none bg-gradient-to-br from-orange-400 via-orange-500 to-orange-700 text-white shadow-lg shadow-orange-500/40 ring-2 ring-white/30 sm:mx-0">
         <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
@@ -355,12 +359,43 @@ function UnknownNotRegisteredPanel({
           Buy original phones from Allo
           <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
         </a>
+      </div>
+    </div>
+  );
+}
+
+function ResultFooterActions({
+  onShare,
+  onCheckAnother,
+  shareBusy,
+  shareNotice,
+  shareError,
+}: {
+  onShare: () => void;
+  onCheckAnother: () => void;
+  shareBusy: boolean;
+  shareNotice: string | null;
+  shareError: string | null;
+}) {
+  return (
+    <div className="mt-8 border-t border-zinc-200 pt-6">
+      {shareError ? (
+        <p className="mb-3 text-center text-sm font-medium text-rose-700">{shareError}</p>
+      ) : null}
+      {shareNotice ? (
+        <p className="mb-3 text-center text-sm font-medium text-emerald-700">{shareNotice}</p>
+      ) : null}
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
         <button
           type="button"
-          onClick={onCheckAnother}
-          className="text-sm font-semibold text-blue-600 underline decoration-blue-600/30 underline-offset-4 transition hover:text-blue-700"
+          onClick={onShare}
+          disabled={shareBusy}
+          className="inline-flex w-full items-center justify-center rounded-none border-2 border-cyan-600 bg-white px-6 py-3 text-sm font-semibold text-cyan-800 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
-          Check another IMEI or serial
+          {shareBusy ? "Creating link…" : "Share result"}
+        </button>
+        <button type="button" onClick={onCheckAnother} className={btnPartnerCtaRow}>
+          Check another
         </button>
       </div>
     </div>
@@ -371,8 +406,21 @@ export default function App() {
   const [heroIndex, setHeroIndex] = useState(0);
   const [serial, setSerial] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<LookupResult | null>(null);
+  const verifySectionRef = useRef<HTMLElement | null>(null);
+  const serialInputRef = useRef<HTMLInputElement | null>(null);
+  const [shareToken, setShareToken] = useState<string | null>(() =>
+    typeof window !== "undefined" ? parseShareTokenFromHash() : null,
+  );
+  const [shareLoadState, setShareLoadState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [shareLoadError, setShareLoadError] = useState<string | null>(null);
+  const [sharedResult, setSharedResult] = useState<LookupResult | null>(null);
+  const [sharedExpiresAt, setSharedExpiresAt] = useState<string | null>(null);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareNotice, setShareNotice] = useState<string | null>(null);
+  const [shareLinkError, setShareLinkError] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -380,6 +428,70 @@ export default function App() {
     }, 3000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    if (!loading) return;
+    setLoadingMessageIndex(0);
+    const t = setInterval(() => {
+      setLoadingMessageIndex((i) => (i + 1) % loadingMessages.length);
+    }, 1200);
+    return () => clearInterval(t);
+  }, [loading]);
+
+  useEffect(() => {
+    if (!result) return;
+    // Bring the result card into view as soon as lookup resolves.
+    verifySectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [result]);
+
+  useEffect(() => {
+    const sync = () => {
+      setShareToken(parseShareTokenFromHash());
+    };
+    sync();
+    window.addEventListener("hashchange", sync);
+    return () => window.removeEventListener("hashchange", sync);
+  }, []);
+
+  useEffect(() => {
+    if (!shareToken) {
+      setSharedResult(null);
+      setSharedExpiresAt(null);
+      setShareLoadError(null);
+      setShareLoadState("idle");
+      return;
+    }
+    let cancelled = false;
+    setShareLoadState("loading");
+    setShareLoadError(null);
+    setSharedResult(null);
+    void (async () => {
+      try {
+        const res = await fetch(`${apiBase}/api/v1/shares/${encodeURIComponent(shareToken)}`, {
+          cache: "no-store",
+        });
+        const text = await res.text();
+        if (cancelled) return;
+        if (!res.ok) {
+          setShareLoadError(text || `Request failed (${res.status})`);
+          setShareLoadState("error");
+          return;
+        }
+        const data = JSON.parse(text) as { payload: LookupResult; expiresAt?: string };
+        setSharedResult(data.payload);
+        setSharedExpiresAt(data.expiresAt ?? null);
+        setShareLoadState("done");
+      } catch (e) {
+        if (!cancelled) {
+          setShareLoadError(e instanceof Error ? e.message : "Failed to load share");
+          setShareLoadState("error");
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [shareToken]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -417,16 +529,136 @@ export default function App() {
   }
 
   const hero = heroImages[heroIndex];
-  const notes = result?.notes ?? result?.message;
   const resultTier = result ? resolveStatusTier(result) : null;
   const showUnknownNotRegisteredPanel = resultTier === "unknown";
 
+  function goHomeFromShare() {
+    if (window.location.hash) window.location.hash = "";
+    setShareToken(null);
+    setSharedResult(null);
+    setSharedExpiresAt(null);
+    setShareLoadError(null);
+    setShareLoadState("idle");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  async function createAndCopyShareLink(payload: LookupResult) {
+    setShareBusy(true);
+    setShareNotice(null);
+    setShareLinkError(null);
+    try {
+      const res = await fetch(`${apiBase}/api/v1/shares`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ payload }),
+      });
+      const text = await res.text();
+      if (!res.ok) throw new Error(text || `Request failed (${res.status})`);
+      const data = JSON.parse(text) as { token: string };
+      const url = buildShareUrl(data.token);
+      await navigator.clipboard.writeText(url);
+      setShareNotice("Link copied to clipboard.");
+      window.setTimeout(() => setShareNotice(null), 5000);
+    } catch (e) {
+      setShareLinkError(e instanceof Error ? e.message : "Could not create share link");
+      window.setTimeout(() => setShareLinkError(null), 6000);
+    } finally {
+      setShareBusy(false);
+    }
+  }
+
+  function handleCheckAnother() {
+    setResult(null);
+    setError(null);
+    setShareNotice(null);
+    setShareLinkError(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.setTimeout(() => serialInputRef.current?.focus(), 500);
+  }
+
+  if (shareToken) {
+    const sharedTier = sharedResult ? resolveStatusTier(sharedResult) : null;
+    const sharedUnknown = Boolean(sharedResult && sharedTier === "unknown");
+
+    return (
+      <div className="min-h-screen bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(59,130,246,0.12),transparent)] bg-zinc-50 text-zinc-900">
+        <header className="border-b border-zinc-200/70 bg-white/90 shadow-sm backdrop-blur-xl">
+          <div className="mx-auto flex max-w-6xl items-center justify-start gap-4 px-4 py-2.5 sm:px-6 sm:py-3">
+            <a
+              href="#/"
+              onClick={(e) => {
+                e.preventDefault();
+                goHomeFromShare();
+              }}
+              className="rounded-none outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            >
+              <AlloLogo />
+            </a>
+          </div>
+        </header>
+
+        <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-14">
+          <p className="text-center text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-blue-600">
+            Shared verification result
+          </p>
+          <p className="mt-2 text-center text-xs text-zinc-500">
+            Read-only snapshot. Anyone with the link can view these details.
+          </p>
+
+          {shareLoadState === "loading" && (
+            <div className="mt-12 flex flex-col items-center gap-4 text-zinc-600">
+              <div className="h-12 w-12 animate-spin border-4 border-zinc-200 border-t-blue-600" />
+              <p className="text-sm font-medium">Loading shared result…</p>
+            </div>
+          )}
+
+          {shareLoadState === "error" && shareLoadError && (
+            <p className="mt-8 rounded-none border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800">
+              {shareLoadError}
+            </p>
+          )}
+
+          {shareLoadState === "done" && sharedResult && (
+            <>
+              {sharedExpiresAt && (
+                <p className="mt-6 text-center text-xs text-zinc-500">
+                  This link expires on {new Date(sharedExpiresAt).toLocaleString()}.
+                </p>
+              )}
+              <div className="mt-6 w-full">
+                {sharedUnknown ? (
+                  <UnknownNotRegisteredPanel shopUrl={alloShopUrl} />
+                ) : (
+                  <LookupResultCard result={sharedResult} className="mt-0" />
+                )}
+              </div>
+              <div className="mt-8 flex justify-center">
+                <button type="button" onClick={goHomeFromShare} className={btnPrimary}>
+                  Run your own check
+                </button>
+              </div>
+            </>
+          )}
+        </main>
+
+        <footer className="border-t border-zinc-200 bg-white px-4 py-10 text-center text-xs text-zinc-500 sm:px-6">
+          <p>AlloCheck — device verification.</p>
+        </footer>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(59,130,246,0.12),transparent)] bg-zinc-50 text-zinc-900">
-      <header className="sticky top-0 z-50 border-b border-zinc-200/70 bg-white/90 shadow-sm backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-center gap-4 px-4 py-2.5 sm:px-6 sm:py-3">
+      <header className="border-b border-zinc-200/70 bg-white/90 shadow-sm backdrop-blur-xl">
+        <div className="mx-auto flex max-w-6xl items-center justify-start gap-4 px-4 py-2.5 sm:px-6 sm:py-3">
           <a
-            href="#"
+            href="#/"
+            onClick={(e) => {
+              e.preventDefault();
+              if (window.location.hash) window.location.hash = "";
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
             className="rounded-none outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
             <AlloLogo />
@@ -466,32 +698,33 @@ export default function App() {
                         />
                       </svg>
                       <input
+                        ref={serialInputRef}
                         type="text"
                         name="serial"
                         autoComplete="off"
                         placeholder="enter serial number or imie number in"
                         value={serial}
                         onChange={(e) => setSerial(e.target.value)}
-                        className="w-full rounded-none border border-cyan-200/60 bg-gradient-to-r from-cyan-200/55 via-cyan-100/45 to-blue-100/40 py-3 pr-4 pl-11 text-[0.95rem] text-blue-950 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.25)] outline-none backdrop-blur-sm transition placeholder:text-blue-950/70 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/35 sm:py-3.5 sm:pr-5 sm:pl-12 sm:text-base"
+                        className="w-full rounded-none border border-cyan-200/60 bg-gradient-to-r from-cyan-200/55 via-cyan-100/45 to-blue-100/40 py-3 pr-4 pl-11 text-[0.95rem] text-blue-950 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.25)] outline-none backdrop-blur-sm transition placeholder:text-blue-950 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/35 sm:py-3.5 sm:pr-5 sm:pl-12 sm:text-base"
                       />
                     </div>
                   </label>
-                  <button type="submit" disabled={loading} className={`${btnPartnerCta} w-full py-3 sm:w-auto sm:shrink-0 sm:py-3.5`}>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="inline-flex w-full items-center justify-center rounded-none bg-gradient-to-r from-blue-600 to-blue-500 px-8 py-3 text-base font-semibold text-white shadow-lg shadow-blue-600/30 transition hover:from-blue-500 hover:to-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:shrink-0 sm:py-3.5"
+                  >
                     {loading ? "Checking..." : "Check Now"}
                   </button>
                 </form>
-                <div className="mx-auto mt-2.5 flex w-full max-w-3xl snap-x snap-mandatory gap-1.5 overflow-x-auto border border-cyan-200/60 bg-gradient-to-r from-cyan-200/55 via-cyan-100/45 to-blue-100/40 p-1 text-blue-950 backdrop-blur-sm sm:mt-3 sm:grid sm:grid-cols-3 sm:gap-0 sm:overflow-visible sm:p-0">
+                <div className="mx-auto mt-2.5 flex w-full max-w-3xl snap-x snap-mandatory gap-1.5 overflow-x-auto border border-cyan-200/60 bg-gradient-to-r from-cyan-200/55 via-cyan-100/45 to-blue-100/40 p-1 text-blue-950 backdrop-blur-sm sm:mt-3 sm:grid sm:grid-cols-2 sm:gap-0 sm:overflow-visible sm:p-0">
                   <div className="flex min-w-[11rem] snap-start items-center justify-center gap-2 border border-white/20 px-3 py-2 text-center text-xs font-medium sm:min-w-0 sm:border-y-0 sm:border-l-0 sm:border-r sm:px-4 sm:py-2.5 sm:text-sm">
                     <span className="text-blue-950">✓</span>
                     <span>Real-time Verification</span>
                   </div>
-                  <div className="flex min-w-[10rem] snap-start items-center justify-center gap-2 border border-white/20 px-3 py-2 text-center text-xs font-medium sm:min-w-0 sm:border-y-0 sm:border-l-0 sm:border-r sm:px-4 sm:py-2.5 sm:text-sm">
+                  <div className="flex min-w-[10rem] snap-start items-center justify-center gap-2 border border-white/20 px-3 py-2 text-center text-xs font-medium sm:min-w-0 sm:border-y-0 sm:border-l-0 sm:border-r-0 sm:px-4 sm:py-2.5 sm:text-sm">
                     <span className="text-blue-950">✓</span>
                     <span>Trusted Registry</span>
-                  </div>
-                  <div className="flex min-w-[9rem] snap-start items-center justify-center gap-2 border border-white/20 px-3 py-2 text-center text-xs font-medium sm:min-w-0 sm:border-y-0 sm:border-l-0 sm:border-r-0 sm:px-4 sm:py-2.5 sm:text-sm">
-                    <span className="text-blue-950">✓</span>
-                    <span>Secure Checks</span>
                   </div>
                 </div>
                 {error && (
@@ -519,22 +752,22 @@ export default function App() {
       {result && (
         <section
           id="verify"
+          ref={verifySectionRef}
           className="scroll-mt-20 border-b border-zinc-200 bg-gradient-to-b from-zinc-100 to-zinc-50 px-4 py-12 sm:px-6 sm:py-20"
         >
-          <div className="mx-auto flex max-w-2xl justify-center">
-            <div className="w-full rounded-none border border-white/80 bg-white p-5 shadow-[0_25px_60px_-15px_rgba(37,99,235,0.15)] ring-1 ring-blue-100/80 sm:p-10 md:p-12">
-              {showUnknownNotRegisteredPanel ? (
-                <UnknownNotRegisteredPanel
-                  shopUrl={alloShopUrl}
-                  onCheckAnother={() => {
-                    setResult(null);
-                    setError(null);
-                  }}
-                />
-              ) : (
-                <LookupResultCard result={result} notes={notes} />
-              )}
-            </div>
+          <div className="mx-auto flex w-full max-w-3xl flex-col items-stretch px-4 sm:px-6">
+            {showUnknownNotRegisteredPanel ? (
+              <UnknownNotRegisteredPanel shopUrl={alloShopUrl} />
+            ) : (
+              <LookupResultCard result={result} className="mt-0" />
+            )}
+            <ResultFooterActions
+              onShare={() => void createAndCopyShareLink(result)}
+              onCheckAnother={handleCheckAnother}
+              shareBusy={shareBusy}
+              shareNotice={shareNotice}
+              shareError={shareLinkError}
+            />
           </div>
         </section>
       )}
@@ -627,6 +860,55 @@ export default function App() {
       <footer className="border-t border-zinc-200 bg-white px-4 py-10 text-center text-xs text-zinc-500 sm:px-6">
         <p>AlloCheck — device verification.</p>
       </footer>
+
+      {loading && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-blue-950/80 px-4 backdrop-blur-md">
+          <div className="w-full max-w-lg overflow-hidden rounded-none border border-cyan-200/35 bg-gradient-to-br from-blue-950/90 via-blue-900/85 to-teal-950/90 p-10 text-center text-white shadow-2xl ring-1 ring-cyan-400/20">
+            <div className="relative mx-auto mb-8 flex h-36 w-36 items-center justify-center sm:h-40 sm:w-40">
+              {/* Ambient glow */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400/35 via-blue-500/25 to-blue-600/30 blur-2xl" />
+              {/* Outer static ring */}
+              <div className="absolute inset-2 rounded-full border-[3px] border-white/10" />
+              {/* Primary spinning arc */}
+              <div
+                className="absolute inset-2 rounded-full border-[3px] border-transparent border-t-cyan-300 border-r-sky-400 animate-spin"
+                style={{ animationDuration: "1.1s" }}
+              />
+              {/* Counter-rotating inner arc */}
+              <div className="absolute inset-5 scale-x-[-1]">
+                <div
+                  className="h-full w-full rounded-full border-[2px] border-transparent border-b-cyan-200/90 border-l-blue-300/80 animate-spin"
+                  style={{ animationDuration: "0.85s" }}
+                />
+              </div>
+              {/* Center hub */}
+              <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-white/20 to-white/5 shadow-inner ring-1 ring-white/25 backdrop-blur-sm">
+                <svg
+                  className="relative z-10 h-8 w-8 text-cyan-100"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 21l-4.35-4.35m1.35-5.15a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"
+                  />
+                </svg>
+              </div>
+            </div>
+            <p className="text-[0.7rem] uppercase tracking-[0.2em] text-cyan-200/90">AlloCheck Lookup</p>
+            <h3 className="mt-2 min-h-[2.5rem] text-2xl font-bold transition-all duration-300 sm:min-h-[3rem] sm:text-3xl">
+              {loadingMessages[loadingMessageIndex]}
+            </h3>
+            <p className="mt-3 text-sm text-blue-100/90 sm:text-base">
+              Please wait while we verify the device across available records.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
