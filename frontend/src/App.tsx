@@ -36,14 +36,17 @@ const heroImages = [
 ];
 
 const btnPrimary =
-  "inline-flex items-center justify-center gap-2 rounded-none bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-60";
+
+/** Same horizontal and vertical size as the hero Check Now button (`btnPartnerCta` + py rhythm). */
+const btnPrimaryLg =
+  "inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-8 py-3 text-base font-semibold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 w-full justify-center sm:w-auto sm:shrink-0 sm:py-3.5";
 
 const btnPartnerCta =
-  "group inline-flex items-center justify-center gap-2 rounded-none bg-gradient-to-r from-cyan-400 to-cyan-300 px-8 py-3.5 text-base font-semibold text-blue-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-300 hover:to-cyan-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300";
+  "group inline-flex items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-cyan-400 to-cyan-300 px-8 py-3.5 text-base font-semibold text-blue-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-300 hover:to-cyan-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300";
 
-/** Same partner gradient as `btnPartnerCta`, sized to match footer row actions (e.g. Share result). */
-const btnPartnerCtaRow =
-  "group inline-flex w-full items-center justify-center gap-2 rounded-none bg-gradient-to-r from-cyan-400 to-cyan-300 px-6 py-3 text-sm font-semibold text-blue-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-300 hover:to-cyan-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 sm:w-auto";
+/** Same size as hero Check Now: full-width on small screens, `py-3` / `sm:py-3.5` to match submit button. */
+const btnPartnerCtaRow = `${btnPartnerCta} w-full justify-center py-3 sm:w-auto sm:shrink-0 sm:py-3.5`;
 
 const loadingMessages = [
   "Searching...",
@@ -273,7 +276,7 @@ function LookupResultCard({
 
   return (
     <div
-      className={`${className} mx-auto w-full max-w-3xl overflow-hidden rounded-none border border-zinc-200 bg-white shadow-sm`}
+      className={`${className} mx-auto w-full max-w-3xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm`}
       role="region"
       aria-label="Verification result"
     >
@@ -290,7 +293,7 @@ function LookupResultCard({
           <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-start">
             <div className="flex min-w-0 gap-3">
               <div
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-none ring-2 backdrop-blur-sm ${tierIconWrap(tier)}`}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-2 backdrop-blur-sm ${tierIconWrap(tier)}`}
               >
                 <StatusGlyphByTier tier={tier} />
               </div>
@@ -329,7 +332,7 @@ function LookupResultCard({
 function UnknownNotRegisteredPanel({ shopUrl }: { shopUrl: string }) {
   return (
     <div className="mx-auto w-full max-w-3xl text-center sm:text-left">
-      <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-none bg-gradient-to-br from-orange-400 via-orange-500 to-orange-700 text-white shadow-lg shadow-orange-500/40 ring-2 ring-white/30 sm:mx-0">
+      <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-400 via-orange-500 to-orange-700 text-white shadow-lg shadow-orange-500/40 ring-2 ring-white/30 sm:mx-0">
         <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
         </svg>
@@ -338,7 +341,7 @@ function UnknownNotRegisteredPanel({ shopUrl }: { shopUrl: string }) {
         Not registered / unknown
       </p>
       <h2 className="mt-2 text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">Proceed with caution</h2>
-      <div className="relative mt-6 overflow-hidden rounded-none bg-gradient-to-br from-orange-400 via-orange-500 to-orange-700 px-5 py-5 text-left shadow-xl shadow-orange-600/30 sm:px-6 sm:py-6">
+      <div className="relative mt-6 overflow-hidden rounded-2xl bg-gradient-to-br from-orange-400 via-orange-500 to-orange-700 px-5 py-5 text-left shadow-xl shadow-orange-600/30 sm:px-6 sm:py-6">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_80%_at_100%_0%,rgba(255,255,255,0.2),transparent)]" />
         <div className="relative">
           <p className="text-base font-semibold leading-relaxed text-white sm:text-lg">
@@ -354,7 +357,7 @@ function UnknownNotRegisteredPanel({ shopUrl }: { shopUrl: string }) {
           href={shopUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className={`${btnPartnerCta} w-full max-w-md justify-center sm:w-auto`}
+          className={`${btnPartnerCta} w-full max-w-md justify-center py-3 sm:w-auto sm:shrink-0 sm:py-3.5`}
         >
           Buy original phones from Allo
           <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
@@ -390,7 +393,7 @@ function ResultFooterActions({
           type="button"
           onClick={onShare}
           disabled={shareBusy}
-          className="inline-flex w-full items-center justify-center rounded-none border-2 border-cyan-600 bg-white px-6 py-3 text-sm font-semibold text-cyan-800 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="inline-flex w-full items-center justify-center rounded-lg border-2 border-cyan-600 bg-white px-6 py-3 text-sm font-semibold text-cyan-800 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {shareBusy ? "Creating link…" : "Share result"}
         </button>
@@ -590,7 +593,7 @@ export default function App() {
                 e.preventDefault();
                 goHomeFromShare();
               }}
-              className="rounded-none outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             >
               <AlloLogo />
             </a>
@@ -607,13 +610,13 @@ export default function App() {
 
           {shareLoadState === "loading" && (
             <div className="mt-12 flex flex-col items-center gap-4 text-zinc-600">
-              <div className="h-12 w-12 animate-spin border-4 border-zinc-200 border-t-blue-600" />
+              <div className="h-12 w-12 animate-spin rounded-full border-4 border-zinc-200 border-t-blue-600" />
               <p className="text-sm font-medium">Loading shared result…</p>
             </div>
           )}
 
           {shareLoadState === "error" && shareLoadError && (
-            <p className="mt-8 rounded-none border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800">
+            <p className="mt-8 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800">
               {shareLoadError}
             </p>
           )}
@@ -659,7 +662,7 @@ export default function App() {
               if (window.location.hash) window.location.hash = "";
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
-            className="rounded-none outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+            className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
           >
             <AlloLogo />
           </a>
@@ -681,14 +684,14 @@ export default function App() {
               <div className="absolute inset-x-3 bottom-4 z-10 sm:inset-x-6 sm:bottom-8">
                 <form onSubmit={onSubmit} className="mx-auto flex w-full max-w-3xl flex-col items-center gap-2.5 sm:flex-row sm:items-end sm:gap-3">
                   <label className="block w-full">
-                    <span className="sr-only">Serial number or IMEI</span>
+                    <span className="sr-only">Enter phone IMEI or Serial Number</span>
                     <div className="relative">
                       <svg
-                        className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-blue-950"
+                        className="pointer-events-none absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-zinc-950 sm:h-6 sm:w-6"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
-                        strokeWidth={2}
+                        strokeWidth={2.25}
                         aria-hidden
                       >
                         <path
@@ -702,22 +705,22 @@ export default function App() {
                         type="text"
                         name="serial"
                         autoComplete="off"
-                        placeholder="enter serial number or imie number in"
+                        placeholder="Enter phone IMEI or Serial Number"
                         value={serial}
                         onChange={(e) => setSerial(e.target.value)}
-                        className="w-full rounded-none border border-cyan-200/60 bg-gradient-to-r from-cyan-200/55 via-cyan-100/45 to-blue-100/40 py-3 pr-4 pl-11 text-[0.95rem] text-blue-950 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.25)] outline-none backdrop-blur-sm transition placeholder:text-blue-950 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/35 sm:py-3.5 sm:pr-5 sm:pl-12 sm:text-base"
+                        className="w-full rounded-lg border border-cyan-200/60 bg-gradient-to-r from-cyan-200/55 via-cyan-100/45 to-blue-100/40 py-3 pr-4 pl-11 text-[0.95rem] text-blue-950 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.25)] outline-none backdrop-blur-sm transition placeholder:text-blue-950/75 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/35 sm:py-3.5 sm:pr-5 sm:pl-12 sm:text-base"
                       />
                     </div>
                   </label>
                   <button
                     type="submit"
                     disabled={loading}
-                    className="inline-flex w-full items-center justify-center rounded-none bg-gradient-to-r from-blue-600 to-blue-500 px-8 py-3 text-base font-semibold text-white shadow-lg shadow-blue-600/30 transition hover:from-blue-500 hover:to-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:shrink-0 sm:py-3.5"
+                    className={`${btnPartnerCta} w-full py-3 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:shrink-0 sm:py-3.5`}
                   >
                     {loading ? "Checking..." : "Check Now"}
                   </button>
                 </form>
-                <div className="mx-auto mt-2.5 flex w-full max-w-3xl snap-x snap-mandatory gap-1.5 overflow-x-auto border border-cyan-200/60 bg-gradient-to-r from-cyan-200/55 via-cyan-100/45 to-blue-100/40 p-1 text-blue-950 backdrop-blur-sm sm:mt-3 sm:grid sm:grid-cols-2 sm:gap-0 sm:overflow-visible sm:p-0">
+                <div className="mx-auto mt-2.5 flex w-full max-w-3xl snap-x snap-mandatory gap-1.5 overflow-x-auto rounded-lg border border-cyan-200/60 bg-gradient-to-r from-cyan-200/55 via-cyan-100/45 to-blue-100/40 p-1 text-blue-950 backdrop-blur-sm sm:mt-3 sm:grid sm:grid-cols-2 sm:gap-0 sm:overflow-visible sm:p-0">
                   <div className="flex min-w-[11rem] snap-start items-center justify-center gap-2 border border-white/20 px-3 py-2 text-center text-xs font-medium sm:min-w-0 sm:border-y-0 sm:border-l-0 sm:border-r sm:px-4 sm:py-2.5 sm:text-sm">
                     <span className="text-blue-950">✓</span>
                     <span>Real-time Verification</span>
@@ -728,7 +731,7 @@ export default function App() {
                   </div>
                 </div>
                 {error && (
-                  <p className="mx-auto mt-3 w-full max-w-3xl rounded-none border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800">
+                  <p className="mx-auto mt-3 w-full max-w-3xl rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800">
                     {error}
                   </p>
                 )}
@@ -774,7 +777,7 @@ export default function App() {
 
       <section className="border-b border-zinc-200 bg-gradient-to-b from-zinc-100 to-zinc-50 py-10 sm:py-16 lg:py-24">
         <div className="w-full px-4 sm:px-5 lg:px-6">
-          <div className="w-full overflow-hidden rounded-none border border-white/80 bg-white shadow-[0_25px_60px_-15px_rgba(37,99,235,0.15)] ring-1 ring-blue-100/80">
+          <div className="w-full overflow-hidden rounded-2xl border border-white/80 bg-white shadow-[0_25px_60px_-15px_rgba(37,99,235,0.15)] ring-1 ring-blue-100/80">
             {/* Mobile: stack. md+: strict 50% / 50% (1fr 1fr). */}
             <div className="grid min-h-0 w-full grid-cols-1 divide-y divide-zinc-100/90 md:grid-cols-2 md:divide-x md:divide-y-0 md:divide-zinc-100">
               {/* Content + CTA — half width on md+ */}
@@ -789,7 +792,7 @@ export default function App() {
                   Get a device that has already passed verification—backed by warranty and the Allo network.
                 </p>
                 <div className="mt-2 flex justify-center md:mt-4 md:justify-start">
-                  <a href="#" className={btnPrimary}>
+                  <a href="#" className={btnPrimaryLg}>
                     Buy Phone from Allo
                   </a>
                 </div>
@@ -798,8 +801,8 @@ export default function App() {
               {/* Visual — half width on md+; fills its column */}
               <div className="relative flex min-h-[240px] min-w-0 flex-col items-center justify-center bg-gradient-to-br from-cyan-50/95 via-white to-blue-50/70 px-5 py-8 sm:min-h-[320px] sm:px-8 sm:py-12 md:min-h-[360px] md:px-6 md:py-10 lg:min-h-0 lg:px-8 lg:py-12 xl:px-10">
                 <div className="flex w-full max-w-[280px] flex-col items-center justify-center sm:max-w-[300px] md:max-w-none md:w-full">
-                  <div className="mx-auto aspect-[9/19] w-full max-w-[220px] rounded-none border-[5px] border-blue-900 bg-zinc-900 shadow-2xl sm:max-w-[240px] md:max-w-[min(100%,260px)] md:min-h-[300px] lg:min-h-[320px]">
-                    <div className="mx-auto mt-3 h-4 w-16 rounded-none bg-zinc-800 sm:mt-4 sm:h-5 sm:w-20" />
+                  <div className="mx-auto aspect-[9/19] w-full max-w-[220px] rounded-[2rem] border-[5px] border-blue-900 bg-zinc-900 shadow-2xl sm:max-w-[240px] md:max-w-[min(100%,260px)] md:min-h-[300px] lg:min-h-[320px]">
+                    <div className="mx-auto mt-3 h-4 w-16 rounded-full bg-zinc-800 sm:mt-4 sm:h-5 sm:w-20" />
                     <div className="mx-auto mt-8 flex min-h-[120px] flex-1 items-center justify-center text-5xl sm:mt-10 sm:min-h-[140px] sm:text-6xl md:text-7xl">
                       📱
                     </div>
@@ -816,7 +819,7 @@ export default function App() {
 
       <section id="partners" className="scroll-mt-20 bg-blue-950 px-4 py-12 sm:px-6 sm:py-20">
         <div className="mx-auto max-w-6xl">
-          <div className="overflow-hidden rounded-none border border-cyan-500/20 bg-blue-900/50 shadow-2xl shadow-black/40">
+          <div className="overflow-hidden rounded-2xl border border-cyan-500/20 bg-blue-900/50 shadow-2xl shadow-black/40">
             <div className="flex flex-col lg:min-h-[320px] lg:flex-row lg:items-stretch">
               <div className="relative min-h-[240px] w-full lg:min-h-[min(22rem,100%)] lg:w-[48%] lg:flex-shrink-0 lg:self-stretch">
                 <PartnerBannerImage src={partnersBannerSrc} />
@@ -863,7 +866,7 @@ export default function App() {
 
       {loading && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-blue-950/80 px-4 backdrop-blur-md">
-          <div className="w-full max-w-lg overflow-hidden rounded-none border border-cyan-200/35 bg-gradient-to-br from-blue-950/90 via-blue-900/85 to-teal-950/90 p-10 text-center text-white shadow-2xl ring-1 ring-cyan-400/20">
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-cyan-200/35 bg-gradient-to-br from-blue-950/90 via-blue-900/85 to-teal-950/90 p-10 text-center text-white shadow-2xl ring-1 ring-cyan-400/20">
             <div className="relative mx-auto mb-8 flex h-36 w-36 items-center justify-center sm:h-40 sm:w-40">
               {/* Ambient glow */}
               <div className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400/35 via-blue-500/25 to-blue-600/30 blur-2xl" />
