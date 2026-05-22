@@ -6,6 +6,7 @@ type LookupResult = {
   found: boolean;
   displayLevel?: DisplayLevel;
   status?: string;
+  deviceId?: string | null;
   deviceName?: string;
   brand?: string;
   imei?: string;
@@ -54,12 +55,40 @@ const loadingMessages = [
   "Searching international databases...",
 ];
 
-function parseShareTokenFromHash(): string | null {
+const RESULT_STORAGE_KEY = "allocheck:lastResult";
+
+type AppRoute =
+  | { kind: "home" }
+  | { kind: "result" }
+  | { kind: "share"; token: string };
+
+function readStoredResult(): LookupResult | null {
+  try {
+    const raw = sessionStorage.getItem(RESULT_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as LookupResult;
+  } catch {
+    return null;
+  }
+}
+
+function storeResult(payload: LookupResult) {
+  sessionStorage.setItem(RESULT_STORAGE_KEY, JSON.stringify(payload));
+}
+
+function clearStoredResult() {
+  sessionStorage.removeItem(RESULT_STORAGE_KEY);
+}
+
+function parseAppRouteFromHash(): AppRoute {
   const raw = window.location.hash.replace(/^#\/?/, "").trim();
-  if (!raw.toLowerCase().startsWith("share/")) return null;
-  const token = raw.slice(6).split(/[/?#]/)[0]?.trim() ?? "";
-  if (!/^[a-f0-9]{48}$/i.test(token)) return null;
-  return token;
+  if (!raw) return { kind: "home" };
+  if (raw.toLowerCase() === "result") return { kind: "result" };
+  if (raw.toLowerCase().startsWith("share/")) {
+    const token = raw.slice(6).split(/[/?#]/)[0]?.trim() ?? "";
+    if (/^[a-f0-9]{48}$/i.test(token)) return { kind: "share", token };
+  }
+  return { kind: "home" };
 }
 
 function buildPublicOrigin(): string {
@@ -204,6 +233,41 @@ function tierIconWrap(tier: StatusTier): string {
   }
 }
 
+function tierTagText(tier: StatusTier): string {
+  return tier === "unknown" ? "text-amber-950" : "text-white";
+}
+
+function StatusExplainerCard({
+  tier,
+  tag,
+  title,
+  description,
+}: {
+  tier: StatusTier;
+  tag: string;
+  title: string;
+  description: string;
+}) {
+  const grad = tierHeaderGradient(tier);
+
+  return (
+    <div className="flex min-h-[13rem] flex-col rounded-lg border border-zinc-200 bg-white px-4 py-5 shadow-sm sm:min-h-[15rem] sm:px-5 sm:py-6 lg:min-h-[17rem]">
+      <div
+        className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br shadow-sm sm:h-12 sm:w-12 ${grad} ${tierTagText(tier)}`}
+      >
+        <StatusGlyphByTier tier={tier} />
+      </div>
+      <span
+        className={`mt-4 inline-flex w-fit rounded-full bg-gradient-to-br px-3 py-1 text-[0.65rem] font-bold uppercase tracking-wider sm:text-xs ${grad} ${tierTagText(tier)}`}
+      >
+        {tag}
+      </span>
+      <h3 className="mt-4 text-base font-bold text-zinc-900 sm:text-lg">{title}</h3>
+      <p className="mt-2 text-xs leading-relaxed text-zinc-600 sm:text-sm">{description}</p>
+    </div>
+  );
+}
+
 function StatusGlyphByTier({ tier }: { tier: StatusTier }) {
   const common = "h-6 w-6 shrink-0";
   switch (tier) {
@@ -240,25 +304,50 @@ function StatusGlyphByTier({ tier }: { tier: StatusTier }) {
   }
 }
 
-function ResultField({
-  label,
-  value,
-  mono,
-  className = "",
-}: {
-  label: string;
-  value: string | null | undefined;
-  mono?: boolean;
-  className?: string;
-}) {
+function formatImeiDisplay(imei?: string | null): string {
+  const digits = (imei ?? "").replace(/\D/g, "");
+  if (digits.length === 15) {
+    return `${digits.slice(0, 2)} ${digits.slice(2, 6)} ${digits.slice(6, 10)} ${digits.slice(10, 14)} ${digits.slice(14)}`;
+  }
+  const trimmed = (imei ?? "").trim();
+  return trimmed && trimmed !== "—" ? trimmed : "—";
+}
+
+function displayField(value?: string | null): string {
+  const trimmed = (value ?? "").trim();
+  return trimmed && trimmed !== "—" ? trimmed : "—";
+}
+
+function detailTheftReports(tier: StatusTier): string {
+  switch (tier) {
+    case "stolen":
+      return "Report found — do not purchase";
+    case "clean":
+      return "None found";
+    case "finance":
+      return "None found";
+    case "unknown":
+      return "No registry match";
+    default:
+      return "—";
+  }
+}
+
+function detailLockStatus(tier: StatusTier, status?: string): string {
+  const s = (status ?? "").toUpperCase();
+  if (s === "LOCKED_NON_PAYMENT") return "Locked — non-payment or carrier hold";
+  if (tier === "finance") return "Locked — payment or carrier restrictions";
+  if (tier === "stolen") return "May be blocklisted";
+  if (tier === "clean") return "Unlocked — no restrictions";
+  if (tier === "unknown") return "Unknown";
+  return "—";
+}
+
+function DeviceDetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className={`border-b border-zinc-200 py-3.5 sm:py-4 ${className}`}>
-      <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-blue-600/90">{label}</p>
-      <p
-        className={`mt-1.5 text-[0.95rem] font-medium leading-snug text-zinc-900 ${mono ? "font-mono text-sm tracking-tight" : ""}`}
-      >
-        {value && String(value).trim() !== "" ? value : "—"}
-      </p>
+    <div className="flex items-center justify-between gap-4 border-b border-zinc-200 px-4 py-3.5 last:border-b-0 sm:px-5 sm:py-4">
+      <span className="shrink-0 text-sm text-zinc-500">{label}</span>
+      <span className="min-w-0 text-right text-sm font-medium text-zinc-900">{value}</span>
     </div>
   );
 }
@@ -290,95 +379,88 @@ function LookupResultCard({
           >
             Status
           </p>
-          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-start">
-            <div className="flex min-w-0 gap-3">
-              <div
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-2 backdrop-blur-sm ${tierIconWrap(tier)}`}
-              >
-                <StatusGlyphByTier tier={tier} />
-              </div>
-              <div className="min-w-0">
-                <h3 className={`text-xl font-bold tracking-tight sm:text-2xl ${tierTextPrimary(tier)}`}>
-                  {tierStyle.title}
-                </h3>
-                {result.statusLabel && (
-                  <p className={`mt-0.5 text-xs font-semibold sm:text-sm ${tierTextMuted(tier)}`}>
-                    {result.statusLabel}
-                  </p>
-                )}
-                <p className={`mt-1.5 max-w-none text-xs leading-snug sm:text-sm ${tierTextMuted(tier)}`}>
-                  {tierStyle.blurb}
+          <div className="mt-2 flex min-w-0 gap-3">
+            <div
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-2 backdrop-blur-sm ${tierIconWrap(tier)}`}
+            >
+              <StatusGlyphByTier tier={tier} />
+            </div>
+            <div className="min-w-0">
+              <h3 className={`text-xl font-bold tracking-tight sm:text-2xl ${tierTextPrimary(tier)}`}>
+                {tierStyle.title}
+              </h3>
+              {result.statusLabel && (
+                <p className={`mt-0.5 text-xs font-semibold sm:text-sm ${tierTextMuted(tier)}`}>
+                  {result.statusLabel}
                 </p>
-              </div>
+              )}
+              <p className={`mt-1.5 max-w-none text-xs leading-snug sm:text-sm ${tierTextMuted(tier)}`}>
+                {tierStyle.blurb}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="border-t border-zinc-200 bg-white px-5 py-2 sm:px-8 sm:py-3">
-        <p className="pt-4 text-[0.65rem] font-semibold uppercase tracking-wider text-zinc-500">Device details</p>
-        <div className="mt-1 grid sm:grid-cols-2 sm:gap-x-8">
-          <ResultField label="Device name" value={result.deviceName} />
-          <ResultField label="Brand" value={result.brand} />
-          <ResultField label="IMEI" value={result.imei} mono className="sm:border-b-0" />
-          <ResultField label="Serial number" value={result.serialNumber} mono className="border-b-0" />
+      <div className="bg-white">
+        <div className="flex items-center gap-2 border-b border-zinc-200 px-4 py-3.5 sm:px-5 sm:py-4">
+          <svg className="h-4 w-4 shrink-0 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+          </svg>
+          <span className="text-sm font-semibold text-zinc-900">Device details</span>
+        </div>
+        <div>
+          <DeviceDetailRow label="IMEI checked" value={formatImeiDisplay(result.imei)} />
+          <DeviceDetailRow label="Device name" value={displayField(result.deviceName)} />
+          <DeviceDetailRow label="Brand" value={displayField(result.brand)} />
+          <DeviceDetailRow label="Serial number" value={displayField(result.serialNumber)} />
+          <DeviceDetailRow label="Theft reports" value={detailTheftReports(tier)} />
+          <DeviceDetailRow label="Databases checked" value="Ethiopian registry · Trustonic global" />
+          <DeviceDetailRow label="Lock status" value={detailLockStatus(tier, result.status)} />
         </div>
       </div>
     </div>
   );
 }
 
-/** Shown when lookup resolves to Not Registered / Unknown — replaces the form + standard result card. */
-function UnknownNotRegisteredPanel({ shopUrl }: { shopUrl: string }) {
+function VerifiedFromAlloCta({ shopUrl }: { shopUrl: string }) {
   return (
-    <div className="mx-auto w-full max-w-3xl text-center sm:text-left">
-      <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-400 via-orange-500 to-orange-700 text-white shadow-lg shadow-orange-500/40 ring-2 ring-white/30 sm:mx-0">
-        <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-        </svg>
-      </div>
-      <p className="bg-gradient-to-r from-orange-600 to-orange-500 bg-clip-text text-[0.65rem] font-semibold uppercase tracking-wider text-transparent">
-        Not registered / unknown
+    <div className="rounded-xl border border-cyan-200/70 bg-gradient-to-br from-cyan-50 via-white to-blue-50 px-4 py-4 shadow-sm sm:px-5 sm:py-5">
+      <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-blue-600">Allo Certified</p>
+      <h3 className="mt-1 text-base font-bold text-zinc-900 sm:text-lg">Buy verified from Allo</h3>
+      <p className="mt-1.5 text-sm leading-relaxed text-zinc-600">
+        Every certified phone includes a built-in AlloCheck result—clean, verified, and warranty-backed.
       </p>
-      <h2 className="mt-2 text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">Proceed with caution</h2>
-      <div className="relative mt-6 overflow-hidden rounded-2xl bg-gradient-to-br from-orange-400 via-orange-500 to-orange-700 px-5 py-5 text-left shadow-xl shadow-orange-600/30 sm:px-6 sm:py-6">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_80%_at_100%_0%,rgba(255,255,255,0.2),transparent)]" />
-        <div className="relative">
-          <p className="text-base font-semibold leading-relaxed text-white sm:text-lg">
-            This device is not registered in AlloCheck and might not be genuine or original.
-          </p>
-          <p className="mt-3 text-sm leading-relaxed text-orange-50/95">
-            Only continue if you trust the seller. For a verified device, buy from an authorized source.
-          </p>
-        </div>
-      </div>
-      <div className="mt-8 flex flex-col items-center gap-4 sm:items-start">
-        <a
-          href={shopUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`${btnPartnerCta} w-full max-w-md justify-center py-3 sm:w-auto sm:shrink-0 sm:py-3.5`}
-        >
-          Buy original phones from Allo
-          <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
-        </a>
-      </div>
+      <a
+        href={shopUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`${btnPrimary} mt-4 w-full sm:w-auto`}
+      >
+        Buy certified phones
+      </a>
     </div>
   );
 }
 
-function ResultFooterActions({
-  onShare,
+function ResultPageActions({
+  onDownloadPdf,
   onCheckAnother,
+  onShareResult,
+  onCopyLink,
   shareBusy,
   shareNotice,
   shareError,
+  shareUrl,
 }: {
-  onShare: () => void;
+  onDownloadPdf: () => void;
   onCheckAnother: () => void;
+  onShareResult: () => void;
+  onCopyLink: () => void;
   shareBusy: boolean;
   shareNotice: string | null;
   shareError: string | null;
+  shareUrl: string | null;
 }) {
   return (
     <div className="mt-8 border-t border-zinc-200 pt-6">
@@ -388,20 +470,54 @@ function ResultFooterActions({
       {shareNotice ? (
         <p className="mb-3 text-center text-sm font-medium text-emerald-700">{shareNotice}</p>
       ) : null}
-      <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
+        <button type="button" onClick={onDownloadPdf} className={`${btnPrimary} w-full sm:w-auto`}>
+          Download PDF
+        </button>
+        <button type="button" onClick={onCheckAnother} className={btnPartnerCtaRow}>
+          Check another phone
+        </button>
         <button
           type="button"
-          onClick={onShare}
+          onClick={onShareResult}
           disabled={shareBusy}
-          className="inline-flex w-full items-center justify-center rounded-lg border-2 border-cyan-600 bg-white px-6 py-3 text-sm font-semibold text-cyan-800 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="inline-flex w-full items-center justify-center rounded-lg border-2 border-cyan-600 bg-white px-6 py-3 text-sm font-semibold text-cyan-800 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:py-3.5"
         >
           {shareBusy ? "Creating link…" : "Share result"}
         </button>
-        <button type="button" onClick={onCheckAnother} className={btnPartnerCtaRow}>
-          Check another
-        </button>
       </div>
+
+      {shareUrl ? (
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-stretch">
+          <div className="min-w-0 flex-1 rounded-lg border border-cyan-200/60 bg-gradient-to-r from-cyan-200/55 via-cyan-100/45 to-blue-100/40 px-3 py-2.5 text-sm text-blue-950 backdrop-blur-sm">
+            <span className="block truncate font-medium">{shareUrl}</span>
+          </div>
+          <button type="button" onClick={onCopyLink} className={btnPartnerCtaRow}>
+            Copy link
+          </button>
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+function AppHeader({ onLogoClick }: { onLogoClick: () => void }) {
+  return (
+    <header className="border-b border-zinc-200/70 bg-white/90 shadow-sm backdrop-blur-xl">
+      <div className="mx-auto flex max-w-6xl items-center justify-start gap-4 px-4 py-2.5 sm:px-6 sm:py-3">
+        <a
+          href="#/"
+          onClick={(e) => {
+            e.preventDefault();
+            onLogoClick();
+          }}
+          className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
+          <AlloLogo />
+        </a>
+      </div>
+    </header>
   );
 }
 
@@ -411,11 +527,14 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<LookupResult | null>(null);
-  const verifySectionRef = useRef<HTMLElement | null>(null);
   const serialInputRef = useRef<HTMLInputElement | null>(null);
-  const [shareToken, setShareToken] = useState<string | null>(() =>
-    typeof window !== "undefined" ? parseShareTokenFromHash() : null,
+  const [appRoute, setAppRoute] = useState<AppRoute>(() =>
+    typeof window !== "undefined" ? parseAppRouteFromHash() : { kind: "home" },
+  );
+  const [resultPayload, setResultPayload] = useState<LookupResult | null>(() =>
+    typeof window !== "undefined" && parseAppRouteFromHash().kind === "result"
+      ? readStoredResult()
+      : null,
   );
   const [shareLoadState, setShareLoadState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [shareLoadError, setShareLoadError] = useState<string | null>(null);
@@ -424,6 +543,7 @@ export default function App() {
   const [shareBusy, setShareBusy] = useState(false);
   const [shareNotice, setShareNotice] = useState<string | null>(null);
   const [shareLinkError, setShareLinkError] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -442,14 +562,14 @@ export default function App() {
   }, [loading]);
 
   useEffect(() => {
-    if (!result) return;
-    // Bring the result card into view as soon as lookup resolves.
-    verifySectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [result]);
-
-  useEffect(() => {
     const sync = () => {
-      setShareToken(parseShareTokenFromHash());
+      const route = parseAppRouteFromHash();
+      setAppRoute(route);
+      if (route.kind === "result") {
+        setResultPayload(readStoredResult());
+      } else if (route.kind === "home") {
+        setResultPayload(null);
+      }
     };
     sync();
     window.addEventListener("hashchange", sync);
@@ -457,13 +577,14 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!shareToken) {
+    if (appRoute.kind !== "share") {
       setSharedResult(null);
       setSharedExpiresAt(null);
       setShareLoadError(null);
       setShareLoadState("idle");
       return;
     }
+    const shareToken = appRoute.token;
     let cancelled = false;
     setShareLoadState("loading");
     setShareLoadError(null);
@@ -494,12 +615,32 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [shareToken]);
+  }, [appRoute]);
+
+  function goHome() {
+    clearStoredResult();
+    setResultPayload(null);
+    setShareUrl(null);
+    setShareNotice(null);
+    setShareLinkError(null);
+    if (window.location.hash) window.location.hash = "";
+    else setAppRoute({ kind: "home" });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function goToResultPage(payload: LookupResult) {
+    storeResult(payload);
+    setResultPayload(payload);
+    setAppRoute({ kind: "result" });
+    setShareUrl(null);
+    window.location.hash = "#/result";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setResult(null);
+    setShareUrl(null);
     const trimmed = serial.trim();
     if (!trimmed) {
       setError("Enter a serial number or IMEI.");
@@ -523,7 +664,7 @@ export default function App() {
         throw new Error(text || `Request failed (${res.status})`);
       }
       const data = (await res.json()) as LookupResult;
-      setResult(data);
+      goToResultPage(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Lookup failed");
     } finally {
@@ -532,20 +673,16 @@ export default function App() {
   }
 
   const hero = heroImages[heroIndex];
-  const resultTier = result ? resolveStatusTier(result) : null;
-  const showUnknownNotRegisteredPanel = resultTier === "unknown";
-
   function goHomeFromShare() {
-    if (window.location.hash) window.location.hash = "";
-    setShareToken(null);
+    goHome();
     setSharedResult(null);
     setSharedExpiresAt(null);
     setShareLoadError(null);
     setShareLoadState("idle");
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function createAndCopyShareLink(payload: LookupResult) {
+  async function createShareLink(payload: LookupResult) {
+    if (shareUrl) return;
     setShareBusy(true);
     setShareNotice(null);
     setShareLinkError(null);
@@ -558,10 +695,7 @@ export default function App() {
       const text = await res.text();
       if (!res.ok) throw new Error(text || `Request failed (${res.status})`);
       const data = JSON.parse(text) as { token: string };
-      const url = buildShareUrl(data.token);
-      await navigator.clipboard.writeText(url);
-      setShareNotice("Link copied to clipboard.");
-      window.setTimeout(() => setShareNotice(null), 5000);
+      setShareUrl(buildShareUrl(data.token));
     } catch (e) {
       setShareLinkError(e instanceof Error ? e.message : "Could not create share link");
       window.setTimeout(() => setShareLinkError(null), 6000);
@@ -570,35 +704,126 @@ export default function App() {
     }
   }
 
-  function handleCheckAnother() {
-    setResult(null);
-    setError(null);
+  async function copyShareLink() {
+    if (!shareUrl) return;
     setShareNotice(null);
     setShareLinkError(null);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareNotice("Link copied to clipboard.");
+    } catch {
+      setShareNotice("Copy the link from the field above.");
+    }
+    window.setTimeout(() => setShareNotice(null), 5000);
+  }
+
+  function downloadResultPdf(payload: LookupResult) {
+    const escapePdfText = (value: string) =>
+      value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+    const lines = [
+      "AlloCheck Verification Result",
+      `Status: ${payload.statusLabel || payload.status || "Unknown"}`,
+      `Device: ${payload.deviceName || "-"}`,
+      `Brand: ${payload.brand || "-"}`,
+      `IMEI: ${payload.imei || "-"}`,
+      `Serial number: ${payload.serialNumber || "-"}`,
+      `Result: ${payload.message || payload.notes || "-"}`,
+      `Generated: ${new Date().toLocaleString()}`,
+    ];
+    const textOps = lines
+      .map((line, i) => `BT /F1 ${i === 0 ? 18 : 11} Tf 72 ${760 - i * 28} Td (${escapePdfText(line)}) Tj ET`)
+      .join("\n");
+    const stream = textOps;
+    const objects = [
+      "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
+      "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
+      "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj",
+      "4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
+      `5 0 obj << /Length ${stream.length} >> stream\n${stream}\nendstream endobj`,
+    ];
+    let pdf = "%PDF-1.4\n";
+    const offsets = [0];
+    for (const obj of objects) {
+      offsets.push(pdf.length);
+      pdf += `${obj}\n`;
+    }
+    const xref = pdf.length;
+    pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+    for (let i = 1; i < offsets.length; i += 1) {
+      pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
+    }
+    pdf += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+    const blob = new Blob([pdf], { type: "application/pdf" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `allocheck-result-${Date.now()}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleCheckAnother() {
+    goHome();
+    setError(null);
     window.setTimeout(() => serialInputRef.current?.focus(), 500);
   }
 
-  if (shareToken) {
+  if (appRoute.kind === "result") {
+    return (
+      <div className="min-h-screen bg-white text-zinc-900">
+        <AppHeader onLogoClick={goHome} />
+
+        <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
+          <p className="text-center text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-zinc-900">
+            Verification result
+          </p>
+          <p className="mt-2 text-center text-sm text-zinc-600">
+            Review the device status and details below.
+          </p>
+
+          {!resultPayload ? (
+            <div className="mt-10 text-center">
+              <p className="rounded-lg border border-zinc-200 bg-white px-4 py-6 text-sm text-zinc-600">
+                No result to show. Run a new check from the home page.
+              </p>
+              <button type="button" onClick={goHome} className={`${btnPrimary} mt-6`}>
+                Check a device
+              </button>
+            </div>
+          ) : (
+            <div className="mt-8 w-full space-y-6">
+              <LookupResultCard result={resultPayload} className="mt-0" />
+              <ResultPageActions
+                onDownloadPdf={() => downloadResultPdf(resultPayload)}
+                onCheckAnother={handleCheckAnother}
+                onShareResult={() => void createShareLink(resultPayload)}
+                onCopyLink={() => void copyShareLink()}
+                shareBusy={shareBusy}
+                shareNotice={shareNotice}
+                shareError={shareLinkError}
+                shareUrl={shareUrl}
+              />
+              <VerifiedFromAlloCta shopUrl={alloShopUrl} />
+            </div>
+          )}
+        </main>
+
+        <footer className="border-t border-zinc-200 bg-white px-4 py-10 text-center text-xs text-zinc-500 sm:px-6">
+          <p>AlloCheck — device verification.</p>
+        </footer>
+      </div>
+    );
+  }
+
+  if (appRoute.kind === "share") {
     const sharedTier = sharedResult ? resolveStatusTier(sharedResult) : null;
     const sharedUnknown = Boolean(sharedResult && sharedTier === "unknown");
 
     return (
       <div className="min-h-screen bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(59,130,246,0.12),transparent)] bg-zinc-50 text-zinc-900">
-        <header className="border-b border-zinc-200/70 bg-white/90 shadow-sm backdrop-blur-xl">
-          <div className="mx-auto flex max-w-6xl items-center justify-start gap-4 px-4 py-2.5 sm:px-6 sm:py-3">
-            <a
-              href="#/"
-              onClick={(e) => {
-                e.preventDefault();
-                goHomeFromShare();
-              }}
-              className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-            >
-              <AlloLogo />
-            </a>
-          </div>
-        </header>
+        <AppHeader onLogoClick={goHomeFromShare} />
 
         <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-14">
           <p className="text-center text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-blue-600">
@@ -628,12 +853,21 @@ export default function App() {
                   This link expires on {new Date(sharedExpiresAt).toLocaleString()}.
                 </p>
               )}
-              <div className="mt-6 w-full">
+              <div className="mt-6 w-full space-y-6">
+                <LookupResultCard result={sharedResult} className="mt-0" />
                 {sharedUnknown ? (
-                  <UnknownNotRegisteredPanel shopUrl={alloShopUrl} />
-                ) : (
-                  <LookupResultCard result={sharedResult} className="mt-0" />
-                )}
+                  <div className="flex justify-center">
+                    <a
+                      href={alloShopUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`${btnPartnerCta} w-full max-w-md justify-center py-3 sm:w-auto sm:py-3.5`}
+                    >
+                      Buy original phones from Allo
+                      <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
+                    </a>
+                  </div>
+                ) : null}
               </div>
               <div className="mt-8 flex justify-center">
                 <button type="button" onClick={goHomeFromShare} className={btnPrimary}>
@@ -653,27 +887,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(59,130,246,0.12),transparent)] bg-zinc-50 text-zinc-900">
-      <header className="border-b border-zinc-200/70 bg-white/90 shadow-sm backdrop-blur-xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-start gap-4 px-4 py-2.5 sm:px-6 sm:py-3">
-          <a
-            href="#/"
-            onClick={(e) => {
-              e.preventDefault();
-              if (window.location.hash) window.location.hash = "";
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-            className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-          >
-            <AlloLogo />
-          </a>
-        </div>
-      </header>
+      <AppHeader onLogoClick={goHome} />
 
       <section id="hero-search" className="w-full">
         <div className="w-full">
           {/* Full-bleed rectangular banner — wide aspect, edge-to-edge */}
           <div className="relative w-full overflow-hidden bg-zinc-200">
-            <div className="relative aspect-[5/4] w-full min-h-[22rem] sm:aspect-[21/9] sm:min-h-[16rem] md:aspect-[35/9] md:min-h-[11rem] lg:min-h-[13rem]">
+            <div className="relative aspect-[25/24] w-full min-h-[26.4rem] sm:aspect-[35/18] sm:min-h-[19.2rem] md:aspect-[175/54] md:min-h-[13.2rem] lg:min-h-[15.6rem]">
               <img
                 key={heroIndex}
                 src={hero.src}
@@ -741,66 +961,129 @@ export default function App() {
         </div>
       </section>
 
+      <section className="bg-white px-4 py-5 sm:px-6 sm:py-6">
+        <div className="mx-auto grid max-w-6xl grid-cols-2 gap-y-6 md:grid-cols-4">
+          <div className="px-4 py-5 text-center sm:px-6">
+            <p className="text-2xl font-extrabold tracking-tight text-blue-700 sm:text-3xl">50,000+</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-zinc-600">Registered</p>
+          </div>
+          <div className="px-4 py-5 text-center sm:px-6">
+            <p className="text-2xl font-extrabold tracking-tight text-rose-600 sm:text-3xl">1,500+</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-zinc-600">Reported stolen</p>
+          </div>
+          <div className="px-4 py-5 text-center sm:px-6">
+            <p className="text-base font-extrabold tracking-tight text-teal-700 sm:text-lg">Local + international</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-zinc-600">Databases</p>
+          </div>
+          <div className="px-4 py-5 text-center sm:px-6">
+            <p className="text-2xl font-extrabold tracking-tight text-cyan-700 sm:text-3xl">Free</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-zinc-600">To use</p>
+          </div>
+        </div>
+      </section>
+
       <section className="border-b border-blue-900/30 bg-gradient-to-br from-blue-900 via-blue-950 to-teal-950 px-4 py-12 sm:px-6 sm:py-20">
         <div className="mx-auto max-w-4xl text-center">
           <h2 className="text-2xl font-extrabold tracking-tight text-white sm:text-4xl md:text-5xl">
             Protect Yourself from Fraud
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-blue-100/90 sm:mt-6 sm:text-lg">
-            Stolen and financed phones circulate every day. One quick check reduces the chance you pay for a device you cannot use or resell.
-          </p>
         </div>
       </section>
 
-      {result && (
-        <section
-          id="verify"
-          ref={verifySectionRef}
-          className="scroll-mt-20 border-b border-zinc-200 bg-gradient-to-b from-zinc-100 to-zinc-50 px-4 py-12 sm:px-6 sm:py-20"
-        >
-          <div className="mx-auto flex w-full max-w-3xl flex-col items-stretch px-4 sm:px-6">
-            {showUnknownNotRegisteredPanel ? (
-              <UnknownNotRegisteredPanel shopUrl={alloShopUrl} />
-            ) : (
-              <LookupResultCard result={result} className="mt-0" />
-            )}
-            <ResultFooterActions
-              onShare={() => void createAndCopyShareLink(result)}
-              onCheckAnother={handleCheckAnother}
-              shareBusy={shareBusy}
-              shareNotice={shareNotice}
-              shareError={shareLinkError}
+      <section className="border-b border-zinc-200 bg-white px-4 py-12 sm:px-6 sm:py-16">
+        <div className="mx-auto max-w-6xl">
+          <div className="text-center">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-blue-600">
+              Device status
+            </p>
+            <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900 sm:text-4xl">
+              What AlloCheck tells you
+            </h2>
+          </div>
+
+          <div className="mt-9 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            <StatusExplainerCard
+              tier="clean"
+              tag="Clean"
+              title="Ready to buy"
+              description="No reported registry issues found for this device."
+            />
+            <StatusExplainerCard
+              tier="stolen"
+              tag="Stolen"
+              title="Do not proceed"
+              description="The device may be flagged as stolen or blacklisted."
+            />
+            <StatusExplainerCard
+              tier="finance"
+              tag="Financed"
+              title="Verify ownership"
+              description="The device may still be under a payment agreement."
+            />
+            <StatusExplainerCard
+              tier="finance"
+              tag="Locked"
+              title="Activation risk"
+              description="Carrier, payment, or account restrictions may block use."
             />
           </div>
-        </section>
-      )}
 
-      <section className="border-b border-zinc-200 bg-gradient-to-b from-zinc-100 to-zinc-50 py-10 sm:py-16 lg:py-24">
-        <div className="w-full px-4 sm:px-5 lg:px-6">
-          <div className="w-full overflow-hidden rounded-2xl border border-white/80 bg-white shadow-[0_25px_60px_-15px_rgba(37,99,235,0.15)] ring-1 ring-blue-100/80">
+          <div className="mt-10 flex justify-center">
+            <button
+              type="button"
+              onClick={() => {
+                document.getElementById("hero-search")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                window.setTimeout(() => serialInputRef.current?.focus(), 500);
+              }}
+              className={btnPartnerCta}
+            >
+              Check Now
+              <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="border-b border-zinc-200 bg-gradient-to-b from-zinc-100 to-zinc-50 px-4 py-10 sm:px-6 sm:py-16 lg:py-24">
+        <div className="mx-auto max-w-6xl">
+          <div className="w-full overflow-hidden rounded-lg border border-white/80 bg-white shadow-[0_25px_60px_-15px_rgba(37,99,235,0.15)] ring-1 ring-blue-100/80">
             {/* Mobile: stack. md+: strict 50% / 50% (1fr 1fr). */}
-            <div className="grid min-h-0 w-full grid-cols-1 divide-y divide-zinc-100/90 md:grid-cols-2 md:divide-x md:divide-y-0 md:divide-zinc-100">
+            <div className="grid min-h-0 w-full grid-cols-1 md:min-h-[390px] md:grid-cols-[0.92fr_1.08fr] lg:min-h-[440px]">
               {/* Content + CTA — half width on md+ */}
-              <div className="flex min-h-0 min-w-0 flex-col justify-center gap-4 px-5 py-8 text-center sm:px-8 sm:py-12 md:gap-5 md:px-8 md:py-10 lg:px-10 lg:py-12 xl:px-12 xl:py-14 md:text-left">
+              <div className="order-2 flex min-h-[280px] min-w-0 flex-col justify-between px-5 py-8 text-center sm:min-h-[320px] sm:px-8 sm:py-12 md:order-1 md:min-h-0 md:justify-center md:px-9 md:py-10 md:text-left lg:px-12">
+                <div className="mx-auto flex h-full w-full max-w-xl flex-col justify-between gap-8 md:mx-0 md:block md:h-auto">
+                  <div>
                 <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-blue-600">
                   Allo Certified
                 </p>
-                <h2 className="text-balance text-xl font-bold leading-tight text-zinc-900 sm:text-3xl lg:text-[2rem] xl:text-4xl">
+                <h2 className="mt-3 text-balance text-xl font-bold leading-tight text-zinc-900 sm:text-3xl md:mt-0 lg:text-[2rem] xl:text-4xl">
                   Instead of Worrying, Buy from Allo Certified Phones with Warranty
                 </h2>
-                <p className="text-pretty text-sm leading-relaxed text-zinc-600 sm:text-lg">
+                <p className="mt-4 text-pretty text-sm leading-relaxed text-zinc-600 sm:text-lg md:mt-0">
                   Get a device that has already passed verification—backed by warranty and the Allo network.
                 </p>
-                <div className="mt-2 flex justify-center md:mt-4 md:justify-start">
+                  </div>
+                <div className="flex justify-center md:mt-6 md:justify-start">
                   <a href="#" className={btnPrimaryLg}>
                     Buy Phone from Allo
                   </a>
                 </div>
+                </div>
               </div>
 
               {/* Visual — half width on md+; fills its column */}
-              <div className="relative flex min-h-[240px] min-w-0 flex-col items-center justify-center bg-gradient-to-br from-cyan-50/95 via-white to-blue-50/70 px-5 py-8 sm:min-h-[320px] sm:px-8 sm:py-12 md:min-h-[360px] md:px-6 md:py-10 lg:min-h-0 lg:px-8 lg:py-12 xl:px-10">
-                <div className="flex w-full max-w-[280px] flex-col items-center justify-center sm:max-w-[300px] md:max-w-none md:w-full">
+              <div className="relative order-1 min-h-[260px] overflow-hidden bg-blue-950 sm:min-h-[320px] md:order-2 md:min-h-full">
+                <img
+                  src={heroImages[0].src}
+                  alt="Allo Certified phones"
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-blue-950/55 via-blue-950/5 to-transparent md:bg-gradient-to-r md:from-transparent md:via-transparent md:to-blue-950/20" />
+                <div className="absolute bottom-5 left-5 rounded-lg bg-white/90 px-4 py-3 shadow-lg backdrop-blur-sm sm:bottom-6 sm:left-6">
+                  <p className="text-sm font-bold text-blue-900 sm:text-base">Allo Certified</p>
+                  <p className="mt-1 text-xs font-medium text-zinc-600">Verified phones with warranty</p>
+                </div>
+                <div className="hidden">
                   <div className="mx-auto aspect-[9/19] w-full max-w-[220px] rounded-[2rem] border-[5px] border-blue-900 bg-zinc-900 shadow-2xl sm:max-w-[240px] md:max-w-[min(100%,260px)] md:min-h-[300px] lg:min-h-[320px]">
                     <div className="mx-auto mt-3 h-4 w-16 rounded-full bg-zinc-800 sm:mt-4 sm:h-5 sm:w-20" />
                     <div className="mx-auto mt-8 flex min-h-[120px] flex-1 items-center justify-center text-5xl sm:mt-10 sm:min-h-[140px] sm:text-6xl md:text-7xl">
