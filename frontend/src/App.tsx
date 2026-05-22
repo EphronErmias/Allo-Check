@@ -49,6 +49,15 @@ const btnPartnerCta =
 /** Same size as hero Check Now: full-width on small screens, `py-3` / `sm:py-3.5` to match submit button. */
 const btnPartnerCtaRow = `${btnPartnerCta} w-full justify-center py-3 sm:w-auto sm:shrink-0 sm:py-3.5`;
 
+/** Primary actions on the result page — same height as partner/outline row buttons. */
+const btnPrimaryRow = `${btnPrimary} w-full justify-center py-3 sm:w-auto sm:shrink-0 sm:py-3.5`;
+
+const btnShareOutline =
+  "inline-flex w-full items-center justify-center rounded-full border-2 border-cyan-600 bg-white px-6 py-3 text-sm font-semibold text-cyan-800 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:shrink-0 sm:py-3.5";
+
+const heroFieldShell =
+  "border border-cyan-200/60 bg-gradient-to-r from-cyan-200/55 via-cyan-100/45 to-blue-100/40 text-blue-950 backdrop-blur-sm";
+
 const loadingMessages = [
   "Searching...",
   "Searching all databases...",
@@ -423,7 +432,7 @@ function LookupResultCard({
   );
 }
 
-function VerifiedFromAlloCta({ shopUrl }: { shopUrl: string }) {
+function VerifiedFromAlloCta() {
   return (
     <div className="rounded-xl border border-cyan-200/70 bg-gradient-to-br from-cyan-50 via-white to-blue-50 px-4 py-4 shadow-sm sm:px-5 sm:py-5">
       <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-blue-600">Allo Certified</p>
@@ -431,19 +440,12 @@ function VerifiedFromAlloCta({ shopUrl }: { shopUrl: string }) {
       <p className="mt-1.5 text-sm leading-relaxed text-zinc-600">
         Every certified phone includes a built-in AlloCheck result—clean, verified, and warranty-backed.
       </p>
-      <a
-        href={shopUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`${btnPrimary} mt-4 w-full sm:w-auto`}
-      >
-        Buy certified phones
-      </a>
     </div>
   );
 }
 
 function ResultPageActions({
+  shopUrl,
   onDownloadPdf,
   onCheckAnother,
   onShareResult,
@@ -453,6 +455,7 @@ function ResultPageActions({
   shareError,
   shareUrl,
 }: {
+  shopUrl: string;
   onDownloadPdf: () => void;
   onCheckAnother: () => void;
   onShareResult: () => void;
@@ -471,19 +474,17 @@ function ResultPageActions({
         <p className="mb-3 text-center text-sm font-medium text-emerald-700">{shareNotice}</p>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
-        <button type="button" onClick={onDownloadPdf} className={`${btnPrimary} w-full sm:w-auto`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
+        <button type="button" onClick={onDownloadPdf} className={btnPrimaryRow}>
           Download PDF
         </button>
+        <a href={shopUrl} target="_blank" rel="noopener noreferrer" className={btnPrimaryRow}>
+          Buy certified phones
+        </a>
         <button type="button" onClick={onCheckAnother} className={btnPartnerCtaRow}>
           Check another phone
         </button>
-        <button
-          type="button"
-          onClick={onShareResult}
-          disabled={shareBusy}
-          className="inline-flex w-full items-center justify-center rounded-full border-2 border-cyan-600 bg-white px-6 py-3 text-sm font-semibold text-cyan-800 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:py-3.5"
-        >
+        <button type="button" onClick={onShareResult} disabled={shareBusy} className={btnShareOutline}>
           {shareBusy ? "Creating link…" : "Share result"}
         </button>
       </div>
@@ -796,6 +797,7 @@ export default function App() {
             <div className="mt-8 w-full space-y-6">
               <LookupResultCard result={resultPayload} className="mt-0" />
               <ResultPageActions
+                shopUrl={alloShopUrl}
                 onDownloadPdf={() => downloadResultPdf(resultPayload)}
                 onCheckAnother={handleCheckAnother}
                 onShareResult={() => void createShareLink(resultPayload)}
@@ -805,7 +807,7 @@ export default function App() {
                 shareError={shareLinkError}
                 shareUrl={shareUrl}
               />
-              <VerifiedFromAlloCta shopUrl={alloShopUrl} />
+              <VerifiedFromAlloCta />
             </div>
           )}
         </main>
@@ -928,7 +930,7 @@ export default function App() {
                         placeholder="Enter phone IMEI or Serial Number"
                         value={serial}
                         onChange={(e) => setSerial(e.target.value)}
-                        className="w-full rounded-lg border border-cyan-200/60 bg-gradient-to-r from-cyan-200/55 via-cyan-100/45 to-blue-100/40 py-3 pr-4 pl-11 text-[0.95rem] text-blue-950 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.25)] outline-none backdrop-blur-sm transition placeholder:text-blue-950/75 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/35 sm:py-3.5 sm:pr-5 sm:pl-12 sm:text-base"
+                        className={`w-full rounded-full py-3 pr-4 pl-11 text-[0.95rem] shadow-[0_10px_30px_-12px_rgba(0,0,0,0.25)] outline-none transition placeholder:text-blue-950/75 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/35 sm:py-3.5 sm:pr-5 sm:pl-12 sm:text-base ${heroFieldShell}`}
                       />
                     </div>
                   </label>
@@ -940,12 +942,14 @@ export default function App() {
                     {loading ? "Checking..." : "Check Now"}
                   </button>
                 </form>
-                <div className="mx-auto mt-2.5 flex w-full max-w-3xl snap-x snap-mandatory gap-1.5 overflow-x-auto rounded-lg border border-cyan-200/60 bg-gradient-to-r from-cyan-200/55 via-cyan-100/45 to-blue-100/40 p-1 text-blue-950 backdrop-blur-sm sm:mt-3 sm:grid sm:grid-cols-2 sm:gap-0 sm:overflow-visible sm:p-0">
-                  <div className="flex min-w-[11rem] snap-start items-center justify-center gap-2 border border-white/20 px-3 py-2 text-center text-xs font-medium sm:min-w-0 sm:border-y-0 sm:border-l-0 sm:border-r sm:px-4 sm:py-2.5 sm:text-sm">
+                <div
+                  className={`mx-auto mt-2.5 flex w-full max-w-3xl snap-x snap-mandatory gap-1.5 overflow-x-auto rounded-full p-1 sm:mt-3 sm:grid sm:grid-cols-2 sm:gap-1 sm:overflow-visible ${heroFieldShell}`}
+                >
+                  <div className="flex min-w-[11rem] snap-start items-center justify-center gap-2 rounded-full px-3 py-2 text-center text-xs font-medium sm:min-w-0 sm:px-4 sm:py-2.5 sm:text-sm">
                     <span className="text-blue-950">✓</span>
                     <span>Real-time Verification</span>
                   </div>
-                  <div className="flex min-w-[10rem] snap-start items-center justify-center gap-2 border border-white/20 px-3 py-2 text-center text-xs font-medium sm:min-w-0 sm:border-y-0 sm:border-l-0 sm:border-r-0 sm:px-4 sm:py-2.5 sm:text-sm">
+                  <div className="flex min-w-[10rem] snap-start items-center justify-center gap-2 rounded-full px-3 py-2 text-center text-xs font-medium sm:min-w-0 sm:px-4 sm:py-2.5 sm:text-sm">
                     <span className="text-blue-950">✓</span>
                     <span>Trusted Registry</span>
                   </div>
