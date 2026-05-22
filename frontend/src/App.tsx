@@ -49,9 +49,6 @@ const btnPartnerCta =
 /** Same size as hero Check Now: full-width on small screens, `py-3` / `sm:py-3.5` to match submit button. */
 const btnPartnerCtaRow = `${btnPartnerCta} w-full justify-center py-3 sm:w-auto sm:shrink-0 sm:py-3.5`;
 
-/** Primary actions on the result page — same height as partner/outline row buttons. */
-const btnPrimaryRow = `${btnPrimary} w-full justify-center py-3 sm:w-auto sm:shrink-0 sm:py-3.5`;
-
 const btnShareOutline =
   "inline-flex w-full items-center justify-center rounded-full border-2 border-cyan-600 bg-white px-6 py-3 text-sm font-semibold text-cyan-800 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:shrink-0 sm:py-3.5";
 
@@ -432,7 +429,7 @@ function LookupResultCard({
   );
 }
 
-function VerifiedFromAlloCta() {
+function VerifiedFromAlloCta({ shopUrl }: { shopUrl: string }) {
   return (
     <div className="rounded-xl border border-cyan-200/70 bg-gradient-to-br from-cyan-50 via-white to-blue-50 px-4 py-4 shadow-sm sm:px-5 sm:py-5">
       <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-blue-600">Allo Certified</p>
@@ -440,13 +437,14 @@ function VerifiedFromAlloCta() {
       <p className="mt-1.5 text-sm leading-relaxed text-zinc-600">
         Every certified phone includes a built-in AlloCheck result—clean, verified, and warranty-backed.
       </p>
+      <a href={shopUrl} target="_blank" rel="noopener noreferrer" className={`${btnPartnerCtaRow} mt-4`}>
+        Buy certified phones
+      </a>
     </div>
   );
 }
 
 function ResultPageActions({
-  shopUrl,
-  onDownloadPdf,
   onCheckAnother,
   onShareResult,
   onCopyLink,
@@ -455,8 +453,6 @@ function ResultPageActions({
   shareError,
   shareUrl,
 }: {
-  shopUrl: string;
-  onDownloadPdf: () => void;
   onCheckAnother: () => void;
   onShareResult: () => void;
   onCopyLink: () => void;
@@ -475,12 +471,6 @@ function ResultPageActions({
       ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
-        <button type="button" onClick={onDownloadPdf} className={btnPrimaryRow}>
-          Download PDF
-        </button>
-        <a href={shopUrl} target="_blank" rel="noopener noreferrer" className={btnPrimaryRow}>
-          Buy certified phones
-        </a>
         <button type="button" onClick={onCheckAnother} className={btnPartnerCtaRow}>
           Check another phone
         </button>
@@ -718,53 +708,6 @@ export default function App() {
     window.setTimeout(() => setShareNotice(null), 5000);
   }
 
-  function downloadResultPdf(payload: LookupResult) {
-    const escapePdfText = (value: string) =>
-      value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
-    const lines = [
-      "AlloCheck Verification Result",
-      `Status: ${payload.statusLabel || payload.status || "Unknown"}`,
-      `Device: ${payload.deviceName || "-"}`,
-      `Brand: ${payload.brand || "-"}`,
-      `IMEI: ${payload.imei || "-"}`,
-      `Serial number: ${payload.serialNumber || "-"}`,
-      `Result: ${payload.message || payload.notes || "-"}`,
-      `Generated: ${new Date().toLocaleString()}`,
-    ];
-    const textOps = lines
-      .map((line, i) => `BT /F1 ${i === 0 ? 18 : 11} Tf 72 ${760 - i * 28} Td (${escapePdfText(line)}) Tj ET`)
-      .join("\n");
-    const stream = textOps;
-    const objects = [
-      "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
-      "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
-      "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj",
-      "4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
-      `5 0 obj << /Length ${stream.length} >> stream\n${stream}\nendstream endobj`,
-    ];
-    let pdf = "%PDF-1.4\n";
-    const offsets = [0];
-    for (const obj of objects) {
-      offsets.push(pdf.length);
-      pdf += `${obj}\n`;
-    }
-    const xref = pdf.length;
-    pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
-    for (let i = 1; i < offsets.length; i += 1) {
-      pdf += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`;
-    }
-    pdf += `trailer << /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
-    const blob = new Blob([pdf], { type: "application/pdf" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `allocheck-result-${Date.now()}.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-  }
-
   function handleCheckAnother() {
     goHome();
     setError(null);
@@ -797,8 +740,6 @@ export default function App() {
             <div className="mt-8 w-full space-y-6">
               <LookupResultCard result={resultPayload} className="mt-0" />
               <ResultPageActions
-                shopUrl={alloShopUrl}
-                onDownloadPdf={() => downloadResultPdf(resultPayload)}
                 onCheckAnother={handleCheckAnother}
                 onShareResult={() => void createShareLink(resultPayload)}
                 onCopyLink={() => void copyShareLink()}
@@ -807,7 +748,7 @@ export default function App() {
                 shareError={shareLinkError}
                 shareUrl={shareUrl}
               />
-              <VerifiedFromAlloCta />
+              <VerifiedFromAlloCta shopUrl={alloShopUrl} />
             </div>
           )}
         </main>
