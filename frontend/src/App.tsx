@@ -22,6 +22,10 @@ const apiBase = rawApiUrl.replace(/\/api\/v1\/?$/i, "").replace(/\/$/, "");
 const partnersBannerSrc =
   import.meta.env.VITE_PARTNERS_BANNER_URL?.trim() || "/partners-banner.svg";
 
+/** Matches partners banner / business image panel gradient (`partners-banner.svg`). */
+const alloBusinessImageGradient =
+  "bg-gradient-to-br from-[#1e3a8a] via-[#0e7490] to-[#164e63]";
+
 const alloShopUrl =
   import.meta.env.VITE_ALLO_SHOP_URL?.trim() || "https://allo.et";
 
@@ -198,7 +202,7 @@ function BusinessGrowthChartOverlay() {
 
   return (
     <div
-      className="pointer-events-none absolute inset-x-4 bottom-4 z-10 sm:inset-x-auto sm:bottom-6 sm:right-5 sm:w-[min(100%,18rem)]"
+      className="pointer-events-none absolute bottom-4 right-4 z-10 w-[min(100%,18rem)] origin-bottom-right scale-50 sm:bottom-6 sm:right-5"
       aria-hidden
     >
       <div className="overflow-hidden rounded-xl border border-white/70 bg-white/90 p-3 shadow-[0_16px_40px_-12px_rgba(23,37,84,0.35)] ring-1 ring-cyan-500/10 backdrop-blur-md sm:p-3.5">
@@ -414,46 +418,35 @@ function tierTagText(tier: StatusTier): string {
   return tier === "unknown" ? "text-amber-950" : "text-white";
 }
 
-const EXPLAINER_TAG_BASE =
-  "inline-flex w-fit rounded-full px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.14em] shadow-sm lg:px-2.5 lg:py-0.5 lg:text-[0.6rem]";
-
-/** Clean & Stolen share the same tag treatment (solid pill, white label). */
-const EXPLAINER_CLEAN_STOLEN_TAG = `${EXPLAINER_TAG_BASE} text-white`;
-
-const EXPLAINER_CARD_SHELL = "bg-white border border-zinc-200/80";
+const EXPLAINER_CARD_SHELL = "bg-white border border-zinc-200/70 shadow-sm";
 const EXPLAINER_CARD_BODY = "text-zinc-900";
 const EXPLAINER_CARD_MUTED = "text-zinc-500";
-const EXPLAINER_CARD_VISUAL = "bg-zinc-300";
+const EXPLAINER_CARD_VISUAL = "bg-zinc-200/90";
 
 const EXPLAINER_CARD_THEME: Record<
   StatusTier,
   {
-    badge: string;
     visual: string;
     body: string;
     muted: string;
   }
 > = {
   clean: {
-    badge: `${EXPLAINER_CLEAN_STOLEN_TAG} bg-emerald-600`,
     visual: EXPLAINER_CARD_VISUAL,
     body: EXPLAINER_CARD_BODY,
     muted: EXPLAINER_CARD_MUTED,
   },
   stolen: {
-    badge: `${EXPLAINER_CLEAN_STOLEN_TAG} bg-red-600`,
     visual: EXPLAINER_CARD_VISUAL,
     body: EXPLAINER_CARD_BODY,
     muted: EXPLAINER_CARD_MUTED,
   },
   finance: {
-    badge: `${EXPLAINER_TAG_BASE} bg-orange-600 text-white`,
     visual: EXPLAINER_CARD_VISUAL,
     body: EXPLAINER_CARD_BODY,
     muted: EXPLAINER_CARD_MUTED,
   },
   unknown: {
-    badge: `${EXPLAINER_TAG_BASE} bg-amber-500 text-amber-950`,
     visual: EXPLAINER_CARD_VISUAL,
     body: EXPLAINER_CARD_BODY,
     muted: EXPLAINER_CARD_MUTED,
@@ -462,9 +455,7 @@ const EXPLAINER_CARD_THEME: Record<
 
 type ExplainerCardTheme = (typeof EXPLAINER_CARD_THEME)[StatusTier];
 
-/** Landing “Do not buy” card — violet tag on white shell. */
 const EXPLAINER_DO_NOT_BUY_THEME: ExplainerCardTheme = {
-  badge: `${EXPLAINER_TAG_BASE} bg-violet-700 text-white`,
   visual: EXPLAINER_CARD_VISUAL,
   body: EXPLAINER_CARD_BODY,
   muted: EXPLAINER_CARD_MUTED,
@@ -473,16 +464,10 @@ const EXPLAINER_DO_NOT_BUY_THEME: ExplainerCardTheme = {
 const EXPLAINER_DO_NOT_BUY_ICON_GRAD = "from-violet-500 via-purple-600 to-violet-950";
 
 function ExplainerCardVisual({
-  tier,
-  grad,
   visual,
-  iconTextClass,
   mobileEdge = "default",
 }: {
-  tier: StatusTier;
-  grad: string;
   visual: string;
-  iconTextClass?: string;
   mobileEdge?: "default" | "flush-bottom" | "flush-top";
 }) {
   const radiusClass =
@@ -492,22 +477,11 @@ function ExplainerCardVisual({
         ? "rounded-b-2xl rounded-t-none"
         : "rounded-t-2xl rounded-b-xl";
 
-  return (
-    <div className={`relative h-full w-full overflow-hidden ${radiusClass} ${visual}`}>
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div
-          className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br shadow-md sm:h-20 sm:w-20 lg:h-14 lg:w-14 ${grad} ${iconTextClass ?? tierTagText(tier)}`}
-        >
-          <StatusGlyphByTier tier={tier} />
-        </div>
-      </div>
-    </div>
-  );
+  return <div className={`relative h-full w-full overflow-hidden ${radiusClass} ${visual}`} />;
 }
 
 function StatusExplainerCard({
   tier,
-  tag,
   title,
   description,
   cardLayout = "content-first",
@@ -516,7 +490,6 @@ function StatusExplainerCard({
   iconTextClass,
 }: {
   tier: StatusTier;
-  tag: string;
   title: string;
   description: string;
   cardLayout?: "content-first" | "visual-first";
@@ -537,19 +510,18 @@ function StatusExplainerCard({
       }`}
     >
       <div className="flex items-start justify-between gap-3">
-        <span className={theme.badge}>{tag}</span>
+        <h3
+          className={`min-w-0 flex-1 line-clamp-2 text-xl font-semibold leading-tight tracking-tight sm:text-2xl lg:text-base lg:leading-snug xl:text-lg ${theme.body}`}
+        >
+          {title}
+        </h3>
         <div
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br shadow-md sm:h-11 sm:w-11 lg:h-9 lg:w-9 ${grad} ${iconTextClass ?? tierTagText(tier)}`}
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br shadow-sm ring-1 ring-black/5 sm:h-11 sm:w-11 lg:h-9 lg:w-9 ${grad} ${iconTextClass ?? tierTagText(tier)}`}
           aria-hidden
         >
           <StatusGlyphByTier tier={tier} className="h-5 w-5 sm:h-5 sm:w-5 lg:h-4 lg:w-4" />
         </div>
       </div>
-      <h3
-        className={`mt-3 line-clamp-2 text-xl font-semibold leading-tight tracking-tight sm:mt-4 sm:text-2xl lg:mt-2 lg:text-base lg:leading-snug xl:text-lg ${theme.body}`}
-      >
-        {title}
-      </h3>
       <p className={`mt-2 line-clamp-3 text-xs leading-relaxed sm:text-sm lg:mt-1.5 lg:line-clamp-4 lg:text-[0.7rem] lg:leading-snug xl:text-xs ${theme.muted}`}>
         {description}
       </p>
@@ -565,10 +537,7 @@ function StatusExplainerCard({
       }`}
     >
       <ExplainerCardVisual
-        tier={tier}
-        grad={grad}
         visual={theme.visual}
-        iconTextClass={iconTextClass}
         mobileEdge={visualFirst ? "flush-top" : "flush-bottom"}
       />
     </div>
@@ -576,7 +545,7 @@ function StatusExplainerCard({
 
   return (
     <article
-      className={`relative flex h-[24rem] w-full flex-col overflow-hidden rounded-3xl shadow-sm sm:h-[29rem] lg:aspect-[3/4] lg:h-auto lg:max-h-[20rem] lg:rounded-2xl xl:max-h-[22rem] ${EXPLAINER_CARD_SHELL}`}
+      className={`relative flex h-[24rem] w-full flex-col overflow-hidden rounded-3xl sm:h-[29rem] lg:aspect-[3/4] lg:h-auto lg:max-h-[20rem] lg:rounded-2xl xl:max-h-[22rem] ${EXPLAINER_CARD_SHELL}`}
     >
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         {visualFirst ? (
@@ -750,57 +719,60 @@ function LookupResultCard({
   );
 }
 
-function slabRound(index: number): string {
-  if (index === 0) return "rounded-tl-2xl rounded-bl-2xl sm:rounded-tl-3xl sm:rounded-bl-3xl";
-  if (index === 1) return "rounded-bl-2xl sm:rounded-bl-3xl";
-  return "rounded-tr-2xl rounded-br-2xl rounded-bl-2xl sm:rounded-tr-3xl sm:rounded-br-3xl sm:rounded-bl-3xl";
-}
-
-/** Three columns: clearly different heights (short → mid → tall). */
+/** Three columns: stepped heights, light cyan palette. */
 const HERO_STAT_SLABS = [
   {
     value: "50",
-    rank: "01",
-    caption: "/registered devices - allocheck",
+    caption: "registered devices",
     slabHeight: "h-[9.5rem] sm:h-[11.5rem]",
     valueSize: "text-[clamp(2.25rem,7vw,3.25rem)]",
-    bg: "bg-blue-950",
-    text: "text-white",
-    muted: "text-white/80",
+    bg: "bg-gradient-to-b from-white to-cyan-50",
+    text: "text-blue-950",
+    muted: "text-blue-950/60",
   },
   {
     value: "24",
-    rank: "02",
-    caption: "/stolen reported - registry",
+    caption: "stolen reported",
     slabHeight: "h-[14rem] sm:h-[17rem]",
     valueSize: "text-[clamp(2.5rem,8vw,3.75rem)]",
-    bg: "bg-cyan-300",
+    bg: "bg-gradient-to-b from-cyan-50 to-cyan-100",
     text: "text-blue-950",
-    muted: "text-blue-950/75",
+    muted: "text-blue-950/65",
   },
   {
     value: "26",
-    rank: "03",
-    caption: "/buyer checks - verified",
+    caption: "buyer checks",
     slabHeight: "h-[19rem] sm:h-[23rem]",
     valueSize: "text-[clamp(2.75rem,9vw,4.25rem)]",
-    bg: "bg-cyan-400",
+    bg: "bg-gradient-to-b from-cyan-100 to-cyan-200",
     text: "text-blue-950",
-    muted: "text-blue-950/75",
+    muted: "text-blue-950/65",
   },
 ] as const;
 
+function statSlabOuterRound(index: number): string {
+  if (index === 0) return "rounded-tl-2xl rounded-bl-2xl sm:rounded-tl-3xl sm:rounded-bl-3xl";
+  if (index === 1) return "";
+  return "rounded-tr-2xl rounded-br-2xl sm:rounded-tr-3xl sm:rounded-br-3xl";
+}
+
 function HeroStatsBar() {
   return (
-    <section className="bg-white px-4 pt-8 pb-2 sm:px-6 sm:pt-10 sm:pb-3" aria-label="Platform statistics">
+    <section
+      className="bg-gradient-to-b from-zinc-50 to-white px-4 pt-8 pb-6 sm:px-6 sm:pt-10 sm:pb-8"
+      aria-label="Platform statistics"
+    >
       <div className="mx-auto max-w-5xl">
-        <div className="grid grid-cols-3" role="list">
+        <p className="mb-4 text-center text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-cyan-700/80">
+          AlloCheck registry
+        </p>
+        <div className="grid grid-cols-3 gap-0 overflow-hidden rounded-2xl shadow-sm shadow-cyan-950/5 sm:rounded-3xl" role="list">
           {HERO_STAT_SLABS.map((stat, index) => (
-            <article key={stat.rank} role="listitem" className="flex min-w-0 flex-col">
+            <article key={stat.caption} role="listitem" className="flex min-w-0 flex-col">
               <div
-                className={`relative flex w-full flex-col overflow-hidden ${stat.slabHeight} ${stat.bg} ${slabRound(index)}`}
+                className={`relative flex w-full flex-col overflow-hidden ${stat.slabHeight} ${stat.bg} ${statSlabOuterRound(index)}`}
               >
-                <div className={`flex flex-1 flex-col px-4 pt-5 sm:px-5 sm:pt-7 ${stat.text}`}>
+                <div className={`flex flex-1 flex-col px-3 pt-5 sm:px-5 sm:pt-7 ${stat.text}`}>
                   <div className="flex items-start justify-center">
                     <span
                       className={`${stat.valueSize} font-bold lowercase leading-none tracking-tight`}
@@ -808,33 +780,16 @@ function HeroStatsBar() {
                       {stat.value}
                     </span>
                     <span className={`ml-1 mt-1 text-sm font-light lowercase sm:text-base ${stat.muted}`}>
-                      (%)
+                      %
                     </span>
                   </div>
                 </div>
 
                 <div
-                  className={`flex items-end justify-between gap-2 px-4 pb-4 text-[0.65rem] font-light lowercase leading-tight sm:px-5 sm:pb-5 sm:text-xs ${stat.text}`}
+                  className={`px-3 pb-4 pt-2 text-center text-[0.65rem] font-medium lowercase leading-tight sm:px-5 sm:pb-5 sm:text-xs ${stat.muted}`}
                 >
-                  <span className={stat.muted}>rank {stat.rank}/</span>
-                  <span className={`min-w-0 text-right ${stat.muted}`}>{stat.caption}</span>
+                  {stat.caption}
                 </div>
-              </div>
-
-              <div
-                className={`flex-1 bg-white px-4 sm:px-5 ${
-                  index === 0 ? "min-h-[5rem] py-4 sm:min-h-[5.5rem] sm:py-5" : "min-h-0 py-0"
-                }`}
-              >
-                {index === 0 ? (
-                  <p className="text-2xl font-bold lowercase leading-[1.15] text-blue-950 sm:text-3xl md:text-4xl lg:text-[2.75rem]">
-                    device verification
-                    <br />
-                    allocheck
-                    <br />
-                    ranked
-                  </p>
-                ) : null}
               </div>
             </article>
           ))}
@@ -911,14 +866,18 @@ function ResultPageActions({
 function CheckTrustBadges({ className = "" }: { className?: string }) {
   return (
     <div
-      className={`flex w-full snap-x snap-mandatory gap-1.5 overflow-x-auto rounded-full p-1 sm:grid sm:grid-cols-2 sm:gap-1 sm:overflow-visible ${heroFieldShell} ${className}`}
+      className={`mx-auto flex w-full max-w-3xl flex-col items-stretch gap-2 sm:flex-row sm:justify-center sm:gap-8 ${className}`}
     >
-      <div className="flex min-w-[11rem] snap-start items-center justify-center gap-2 rounded-full px-3 py-2 text-center text-xs font-medium sm:min-w-0 sm:px-4 sm:py-2.5 sm:text-sm">
-        <span className="text-blue-950">✓</span>
+      <div className="flex items-center justify-center gap-2 text-xs font-medium text-white sm:text-sm">
+        <span className="text-cyan-300" aria-hidden>
+          ✓
+        </span>
         <span>Real-time Verification</span>
       </div>
-      <div className="flex min-w-[10rem] snap-start items-center justify-center gap-2 rounded-full px-3 py-2 text-center text-xs font-medium sm:min-w-0 sm:px-4 sm:py-2.5 sm:text-sm">
-        <span className="text-blue-950">✓</span>
+      <div className="flex items-center justify-center gap-2 text-xs font-medium text-white sm:text-sm">
+        <span className="text-cyan-300" aria-hidden>
+          ✓
+        </span>
         <span>Trusted Registry</span>
       </div>
     </div>
@@ -1025,8 +984,6 @@ function CheckPhoneModal({
               <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
             </button>
 
-            <CheckTrustBadges />
-
             {error ? (
               <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800">
                 {error}
@@ -1074,25 +1031,16 @@ function AppFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="relative overflow-hidden bg-gradient-to-br from-blue-950 via-[#0c2744] to-blue-950 text-white">
-      <div
-        className="h-1 w-full bg-gradient-to-r from-cyan-400 via-cyan-300 to-blue-500"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_80%_at_10%_100%,rgba(34,211,238,0.18),transparent_55%)]"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_100%_0%,rgba(59,130,246,0.22),transparent_50%)]"
-        aria-hidden
-      />
-
+    <footer className={`relative overflow-hidden ${alloBusinessImageGradient} text-white`}>
       <div className="relative mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
         <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
           <div className="max-w-md text-center md:text-left">
             <AlloLogo onBrand />
-            <p className="mt-4 text-xs leading-relaxed text-cyan-100/60">
+            <p className="mt-4 text-sm leading-relaxed text-cyan-100/80">
+              Verify devices before you buy. Real-time checks against trusted registries—built for buyers and
+              partners across Ethiopia.
+            </p>
+            <p className="mt-3 text-xs leading-relaxed text-cyan-100/60">
               AlloCheck is a subsidiary of{" "}
               <a
                 href={alloShopUrl}
@@ -1579,7 +1527,7 @@ export default function App() {
     const sharedUnknown = Boolean(sharedResult && sharedTier === "unknown");
 
     return (
-      <div className="min-h-screen bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(59,130,246,0.12),transparent)] bg-zinc-50 text-zinc-900">
+      <div className="min-h-screen bg-zinc-50 text-zinc-900">
         <AppHeader onLogoClick={goHomeFromShare} onCheckPhone={handleCheckPhoneNav} />
 
         <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-14">
@@ -1647,7 +1595,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(59,130,246,0.12),transparent)] bg-zinc-50 text-zinc-900">
+    <div className="min-h-screen bg-zinc-50 text-zinc-900">
       <AppHeader onLogoClick={goHome} onCheckPhone={handleCheckPhoneNav} />
 
       <section id="hero-search" className="w-full px-3 sm:px-5 md:px-6">
@@ -1713,7 +1661,7 @@ export default function App() {
                   </form>
                 )}
                 {!loading || checkModalOpen ? (
-                  <CheckTrustBadges className="mx-auto mt-2.5 max-w-3xl sm:mt-3" />
+                  <CheckTrustBadges className="mt-2.5 sm:mt-3" />
                 ) : null}
                 {error && !checkModalOpen ? (
                   <p className="mx-auto mt-3 w-full max-w-3xl rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800 shadow-sm">
@@ -1728,14 +1676,6 @@ export default function App() {
 
       <HeroStatsBar />
 
-      <section className="bg-white px-4 pt-2 pb-4 sm:px-6 sm:pt-4 sm:pb-6 lg:pb-8">
-        <div className="mx-auto max-w-6xl text-center">
-          <h2 className="text-balance bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 bg-clip-text text-5xl font-extrabold leading-[1.08] tracking-tight text-transparent sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl">
-            Protect Yourself From Fraud
-          </h2>
-        </div>
-      </section>
-
       <section className="bg-white px-4 pb-12 pt-8 sm:px-6 sm:pb-16 sm:pt-10 lg:pb-20 lg:pt-12">
         <div className="mx-auto max-w-7xl">
           <div className="text-center">
@@ -1749,28 +1689,24 @@ export default function App() {
               [
                 {
                   tier: "clean" as const,
-                  tag: "Clean",
                   title: "Ready to buy",
                   description: "No reported registry issues found for this device.",
                   cardLayout: "content-first" as const,
                 },
                 {
                   tier: "stolen" as const,
-                  tag: "Stolen",
                   title: "Do not proceed",
                   description: "The device may be flagged as stolen or blacklisted.",
                   cardLayout: "visual-first" as const,
                 },
                 {
                   tier: "finance" as const,
-                  tag: "Financed",
                   title: "Verify ownership",
                   description: "The device may still be under a payment agreement.",
                   cardLayout: "content-first" as const,
                 },
                 {
                   tier: "unknown" as const,
-                  tag: "Unknown device",
                   title: "Do not buy",
                   description: "Not registered in AlloCheck—may not be genuine or original.",
                   cardLayout: "visual-first" as const,
@@ -1781,12 +1717,11 @@ export default function App() {
               ] as const
             ).map((item) => (
               <div
-                key={item.tag}
-                className="w-[min(79.2vw,21.6rem)] shrink-0 snap-center lg:flex lg:w-full lg:min-w-0"
+                key={item.title}
+                className="w-[min(71.28vw,19.44rem)] shrink-0 snap-center lg:mx-auto lg:flex lg:w-[90%] lg:min-w-0 lg:max-w-[19.44rem]"
               >
                 <StatusExplainerCard
                   tier={item.tier}
-                  tag={item.tag}
                   title={item.title}
                   description={item.description}
                   cardLayout={item.cardLayout}
@@ -1810,12 +1745,12 @@ export default function App() {
       <section className="bg-white px-4 py-10 sm:px-6 sm:py-16 lg:py-24">
         <div className="mx-auto max-w-6xl">
           <div className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 md:gap-8 lg:gap-10">
-            <div className="order-2 flex flex-col justify-center rounded-2xl bg-cyan-300 px-6 py-8 text-center shadow-lg shadow-blue-950/5 sm:px-10 sm:py-12 md:order-1 md:text-left lg:px-12 lg:py-14">
-              <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-blue-950/75">Allo Certified</p>
-              <h2 className="mt-3 text-balance text-xl font-bold leading-tight text-blue-950 sm:text-3xl lg:text-4xl">
+            <div className="order-2 flex flex-col justify-center rounded-2xl border border-zinc-200/80 bg-white px-6 py-8 text-center shadow-lg shadow-blue-950/5 sm:px-10 sm:py-12 md:order-1 md:text-left lg:px-12 lg:py-14">
+              <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-blue-600">Allo Certified</p>
+              <h2 className="mt-3 text-balance text-xl font-bold leading-tight text-zinc-900 sm:text-3xl lg:text-4xl">
                 Instead of Worrying, Buy from Allo Certified Phones with Warranty
               </h2>
-              <p className="mt-4 text-pretty text-sm leading-relaxed text-blue-950/75 sm:text-lg">
+              <p className="mt-4 text-pretty text-sm leading-relaxed text-zinc-600 sm:text-lg">
                 Get a device that has already passed verification—backed by warranty and the Allo network.
               </p>
               <div className="mt-6 flex justify-center md:mt-8 md:justify-start">
