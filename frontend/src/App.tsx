@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 type DisplayLevel = "SAFE" | "WARNING" | "BLOCKED";
 
@@ -23,7 +23,7 @@ const partnersBannerSrc =
   import.meta.env.VITE_PARTNERS_BANNER_URL?.trim() || "/partners-banner.svg";
 
 const alloShopUrl =
-  import.meta.env.VITE_ALLO_SHOP_URL?.trim() || "https://allo.example/phones";
+  import.meta.env.VITE_ALLO_SHOP_URL?.trim() || "https://allo.et";
 
 const heroImages = [
   {
@@ -39,15 +39,17 @@ const heroImages = [
 const btnPrimary =
   "inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-60";
 
-/** Same horizontal and vertical size as the hero Check Now button (`btnPartnerCta` + py rhythm). */
-const btnPrimaryLg =
-  "inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 px-8 py-3 text-base font-semibold text-white shadow-lg shadow-blue-600/25 transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 w-full justify-center sm:w-auto sm:shrink-0 sm:py-3.5";
-
 const btnPartnerCta =
   "group inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-cyan-400 to-cyan-300 px-8 py-3.5 text-base font-semibold text-blue-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-300 hover:to-cyan-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300";
 
 /** Same size as hero Check Now: full-width on small screens, `py-3` / `sm:py-3.5` to match submit button. */
 const btnPartnerCtaRow = `${btnPartnerCta} w-full justify-center py-3 sm:w-auto sm:shrink-0 sm:py-3.5`;
+
+/** Allo Certified shop CTA: 50% stat slab fill, 24% stat slab label color. */
+const btnAlloCertifiedShop =
+  "group inline-flex items-center justify-center gap-2 rounded-full bg-blue-950 px-8 py-3.5 text-base font-bold lowercase tracking-tight text-cyan-300 shadow-lg shadow-blue-950/25 transition hover:bg-blue-900 hover:text-cyan-200";
+const btnAlloCertifiedShopRow = `${btnAlloCertifiedShop} w-full justify-center py-3 sm:w-auto sm:shrink-0 sm:py-3.5`;
+const btnNavCheck = `${btnPartnerCta} shrink-0 px-4 py-2 text-sm sm:px-5 sm:py-2.5`;
 
 const btnShareOutline =
   "inline-flex w-full items-center justify-center rounded-full border-2 border-cyan-600 bg-white px-6 py-3 text-sm font-semibold text-cyan-800 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:shrink-0 sm:py-3.5";
@@ -61,12 +63,59 @@ const loadingMessages = [
   "Searching international databases...",
 ];
 
+function LookupLoadingPanel({ message }: { message: string }) {
+  return (
+    <div className="flex flex-col items-center px-2 py-6 text-center sm:py-8" role="status" aria-live="polite">
+      <div className="relative flex h-14 w-14 items-center justify-center">
+        <div className="absolute inset-0 rounded-full bg-cyan-400/20 blur-md" aria-hidden />
+        <div
+          className="relative h-12 w-12 rounded-full border-[3px] border-cyan-100 border-t-cyan-500 border-r-blue-500 animate-spin"
+          style={{ animationDuration: "0.9s" }}
+          aria-hidden
+        />
+        <svg
+          className="absolute h-5 w-5 text-blue-950"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+          aria-hidden
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M21 21l-4.35-4.35m1.35-5.15a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"
+          />
+        </svg>
+      </div>
+      <p className="mt-4 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-blue-950/55">
+        AlloCheck lookup
+      </p>
+      <p className="mt-1 min-h-[1.75rem] text-base font-bold text-blue-950 transition-all duration-300 sm:text-lg">
+        {message}
+      </p>
+      <p className="mt-1.5 text-xs text-zinc-500">Verifying across available records…</p>
+    </div>
+  );
+}
+
 const RESULT_STORAGE_KEY = "allocheck:lastResult";
 
 type AppRoute =
   | { kind: "home" }
   | { kind: "result" }
-  | { kind: "share"; token: string };
+  | { kind: "share"; token: string }
+  | { kind: "privacy" }
+  | { kind: "terms" }
+  | { kind: "contact" }
+  | { kind: "api-docs" };
+
+const legalRoutes = ["privacy", "terms", "contact", "api-docs"] as const;
+type LegalRouteKind = (typeof legalRoutes)[number];
+
+function isLegalRouteKind(value: string): value is LegalRouteKind {
+  return (legalRoutes as readonly string[]).includes(value);
+}
 
 function readStoredResult(): LookupResult | null {
   try {
@@ -89,8 +138,10 @@ function clearStoredResult() {
 function parseAppRouteFromHash(): AppRoute {
   const raw = window.location.hash.replace(/^#\/?/, "").trim();
   if (!raw) return { kind: "home" };
-  if (raw.toLowerCase() === "result") return { kind: "result" };
-  if (raw.toLowerCase().startsWith("share/")) {
+  const lower = raw.toLowerCase();
+  if (lower === "result") return { kind: "result" };
+  if (isLegalRouteKind(lower)) return { kind: lower };
+  if (lower.startsWith("share/")) {
     const token = raw.slice(6).split(/[/?#]/)[0]?.trim() ?? "";
     if (/^[a-f0-9]{48}$/i.test(token)) return { kind: "share", token };
   }
@@ -127,35 +178,155 @@ function ArrowRight({ className }: { className?: string }) {
   );
 }
 
+const splitSectionImageCardClass =
+  "relative order-1 min-h-[22rem] overflow-hidden rounded-2xl shadow-lg shadow-blue-950/5 sm:min-h-[24rem] md:min-h-[360px] lg:min-h-[420px]";
+
 function PartnerBannerImage({ src }: { src: string }) {
   return (
     <img
       src={src}
-      alt=""
-      className="absolute inset-0 h-full w-full object-cover"
+      alt="Allo business partners"
+      className="absolute inset-0 z-0 h-full w-full object-cover"
     />
   );
 }
 
-function AlloLogo({ className = "" }: { className?: string }) {
+function BusinessGrowthChartOverlay() {
+  const gradId = useId().replace(/:/g, "");
+  const areaGradId = `${gradId}-area`;
+  const lineGradId = `${gradId}-line`;
+
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div
+      className="pointer-events-none absolute inset-x-4 bottom-4 z-10 sm:inset-x-auto sm:bottom-6 sm:right-5 sm:w-[min(100%,18rem)]"
+      aria-hidden
+    >
+      <div className="overflow-hidden rounded-xl border border-white/70 bg-white/90 p-3 shadow-[0_16px_40px_-12px_rgba(23,37,84,0.35)] ring-1 ring-cyan-500/10 backdrop-blur-md sm:p-3.5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[0.58rem] font-semibold uppercase tracking-[0.14em] text-blue-950/45">
+              Certified sales
+            </p>
+            <p className="mt-0.5 text-xl font-bold tabular-nums tracking-tight text-blue-950 sm:text-[1.35rem]">
+              +24%
+            </p>
+          </div>
+          <span className="shrink-0 rounded-full bg-gradient-to-r from-cyan-50 to-emerald-50 px-2 py-0.5 text-[0.62rem] font-semibold text-emerald-700 ring-1 ring-emerald-200/80">
+            ↑ MoM
+          </span>
+        </div>
+
+        <svg
+          viewBox="0 0 220 72"
+          className="mt-2.5 h-[4.25rem] w-full sm:h-[4.5rem]"
+          role="img"
+          aria-label="Upward sales trend chart"
+        >
+          <defs>
+            <linearGradient id={areaGradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.45" />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.02" />
+            </linearGradient>
+            <linearGradient id={lineGradId} x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#22d3ee" />
+              <stop offset="100%" stopColor="#2563eb" />
+            </linearGradient>
+          </defs>
+          <line x1="0" y1="58" x2="220" y2="58" stroke="#e2e8f0" strokeWidth="1" />
+          <line x1="0" y1="38" x2="220" y2="38" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="4 4" />
+          <line x1="0" y1="18" x2="220" y2="18" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="4 4" />
+          <path
+            d="M0 52 L28 48 L56 44 L84 36 L112 30 L140 22 L168 14 L196 8 L220 4 L220 58 L0 58 Z"
+            fill={`url(#${areaGradId})`}
+          />
+          <path
+            d="M0 52 L28 48 L56 44 L84 36 L112 30 L140 22 L168 14 L196 8 L220 4"
+            fill="none"
+            stroke={`url(#${lineGradId})`}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <circle cx="220" cy="4" r="3.5" fill="#22d3ee" stroke="#fff" strokeWidth="2" />
+        </svg>
+
+        <div className="mt-2 flex items-center justify-between gap-2 border-t border-slate-100/90 pt-2 text-[0.58rem] font-medium text-slate-500">
+          <span>Jan</span>
+          <span>Mar</span>
+          <span>May</span>
+          <span>Jul</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SplitSectionImageCard({
+  children,
+  className = "",
+  mdOrder = "md:order-2",
+}: {
+  children: ReactNode;
+  className?: string;
+  mdOrder?: string;
+}) {
+  return (
+    <div className={`${splitSectionImageCardClass} ${mdOrder} ${className}`.trim()}>
+      <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-t from-blue-950/25 via-blue-950/5 to-transparent" />
+      {children}
+    </div>
+  );
+}
+
+function AlloLogo({
+  className = "",
+  compact = false,
+  onBrand = false,
+}: {
+  className?: string;
+  compact?: boolean;
+  /** Light text for cyan/blue brand backgrounds (e.g. check modal header). */
+  onBrand?: boolean;
+}) {
+  const gradId = useId().replace(/:/g, "");
+  const iconSize = compact ? 28 : 36;
+  return (
+    <div className={`flex items-center gap-1.5 sm:gap-2 ${className}`}>
       <svg
-        width="36"
-        height="36"
+        width={iconSize}
+        height={iconSize}
         viewBox="0 0 40 40"
         fill="none"
         className="shrink-0"
         aria-hidden
       >
-        <rect width="40" height="40" rx="10" className="fill-blue-600" />
+        <defs>
+          <linearGradient id={gradId} x1="0" y1="20" x2="40" y2="20" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#22d3ee" />
+            <stop stopColor="#67e8f9" />
+          </linearGradient>
+        </defs>
+        <rect width="40" height="40" rx="10" fill={`url(#${gradId})`} />
         <path
           d="M12 26V14h4.2l3.8 7.2L23.8 14H28v12h-3.2v-7.2l-3.4 7.2h-2.8l-3.4-7.2V26H12z"
-          className="fill-white"
+          className="fill-blue-950"
         />
       </svg>
-      <span className="text-xl font-bold tracking-tight text-zinc-900">
-        Allo<span className="text-blue-600">Check</span>
+      <span
+        className={`font-bold tracking-tight ${compact ? "text-base" : "text-xl"} ${
+          onBrand ? "text-white" : "text-zinc-900"
+        }`}
+      >
+        Allo
+        <span
+          className={
+            onBrand
+              ? "text-cyan-100"
+              : "bg-gradient-to-r from-cyan-400 to-cyan-300 bg-clip-text text-transparent"
+          }
+        >
+          Check
+        </span>
       </span>
     </div>
   );
@@ -243,39 +414,189 @@ function tierTagText(tier: StatusTier): string {
   return tier === "unknown" ? "text-amber-950" : "text-white";
 }
 
+const EXPLAINER_TAG_BASE =
+  "inline-flex w-fit rounded-full px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.14em] shadow-sm lg:px-2.5 lg:py-0.5 lg:text-[0.6rem]";
+
+/** Clean & Stolen share the same tag treatment (solid pill, white label). */
+const EXPLAINER_CLEAN_STOLEN_TAG = `${EXPLAINER_TAG_BASE} text-white`;
+
+const EXPLAINER_CARD_SHELL = "bg-white border border-zinc-200/80";
+const EXPLAINER_CARD_BODY = "text-zinc-900";
+const EXPLAINER_CARD_MUTED = "text-zinc-500";
+const EXPLAINER_CARD_VISUAL = "bg-zinc-300";
+
+const EXPLAINER_CARD_THEME: Record<
+  StatusTier,
+  {
+    badge: string;
+    visual: string;
+    body: string;
+    muted: string;
+  }
+> = {
+  clean: {
+    badge: `${EXPLAINER_CLEAN_STOLEN_TAG} bg-emerald-600`,
+    visual: EXPLAINER_CARD_VISUAL,
+    body: EXPLAINER_CARD_BODY,
+    muted: EXPLAINER_CARD_MUTED,
+  },
+  stolen: {
+    badge: `${EXPLAINER_CLEAN_STOLEN_TAG} bg-red-600`,
+    visual: EXPLAINER_CARD_VISUAL,
+    body: EXPLAINER_CARD_BODY,
+    muted: EXPLAINER_CARD_MUTED,
+  },
+  finance: {
+    badge: `${EXPLAINER_TAG_BASE} bg-orange-600 text-white`,
+    visual: EXPLAINER_CARD_VISUAL,
+    body: EXPLAINER_CARD_BODY,
+    muted: EXPLAINER_CARD_MUTED,
+  },
+  unknown: {
+    badge: `${EXPLAINER_TAG_BASE} bg-amber-500 text-amber-950`,
+    visual: EXPLAINER_CARD_VISUAL,
+    body: EXPLAINER_CARD_BODY,
+    muted: EXPLAINER_CARD_MUTED,
+  },
+};
+
+type ExplainerCardTheme = (typeof EXPLAINER_CARD_THEME)[StatusTier];
+
+/** Landing “Do not buy” card — violet tag on white shell. */
+const EXPLAINER_DO_NOT_BUY_THEME: ExplainerCardTheme = {
+  badge: `${EXPLAINER_TAG_BASE} bg-violet-700 text-white`,
+  visual: EXPLAINER_CARD_VISUAL,
+  body: EXPLAINER_CARD_BODY,
+  muted: EXPLAINER_CARD_MUTED,
+};
+
+const EXPLAINER_DO_NOT_BUY_ICON_GRAD = "from-violet-500 via-purple-600 to-violet-950";
+
+function ExplainerCardVisual({
+  tier,
+  grad,
+  visual,
+  iconTextClass,
+  mobileEdge = "default",
+}: {
+  tier: StatusTier;
+  grad: string;
+  visual: string;
+  iconTextClass?: string;
+  mobileEdge?: "default" | "flush-bottom" | "flush-top";
+}) {
+  const radiusClass =
+    mobileEdge === "flush-bottom"
+      ? "rounded-t-2xl rounded-b-none"
+      : mobileEdge === "flush-top"
+        ? "rounded-b-2xl rounded-t-none"
+        : "rounded-t-2xl rounded-b-xl";
+
+  return (
+    <div className={`relative h-full w-full overflow-hidden ${radiusClass} ${visual}`}>
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div
+          className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br shadow-md sm:h-20 sm:w-20 lg:h-14 lg:w-14 ${grad} ${iconTextClass ?? tierTagText(tier)}`}
+        >
+          <StatusGlyphByTier tier={tier} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function StatusExplainerCard({
   tier,
   tag,
   title,
   description,
+  cardLayout = "content-first",
+  theme: themeOverride,
+  iconGrad,
+  iconTextClass,
 }: {
   tier: StatusTier;
   tag: string;
   title: string;
   description: string;
+  cardLayout?: "content-first" | "visual-first";
+  theme?: ExplainerCardTheme;
+  iconGrad?: string;
+  iconTextClass?: string;
 }) {
-  const grad = tierHeaderGradient(tier);
+  const grad = iconGrad ?? tierHeaderGradient(tier);
+  const theme = themeOverride ?? EXPLAINER_CARD_THEME[tier];
+  const visualFirst = cardLayout === "visual-first";
+
+  const contentBlock = (
+    <div
+      className={`relative z-10 flex min-h-0 shrink-0 flex-col px-4 sm:px-5 lg:px-3.5 lg:py-0 ${
+        visualFirst
+          ? "h-[35%] justify-end pb-4 pt-2 sm:pb-5 sm:pt-3 lg:h-auto lg:flex-[2] lg:justify-end lg:pb-3.5 lg:pt-2"
+          : "h-[35%] justify-start pb-2 pt-4 sm:pt-5 lg:h-auto lg:flex-[2] lg:justify-start lg:pb-2 lg:pt-3.5"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <span className={theme.badge}>{tag}</span>
+        <div
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br shadow-md sm:h-11 sm:w-11 lg:h-9 lg:w-9 ${grad} ${iconTextClass ?? tierTagText(tier)}`}
+          aria-hidden
+        >
+          <StatusGlyphByTier tier={tier} className="h-5 w-5 sm:h-5 sm:w-5 lg:h-4 lg:w-4" />
+        </div>
+      </div>
+      <h3
+        className={`mt-3 line-clamp-2 text-xl font-semibold leading-tight tracking-tight sm:mt-4 sm:text-2xl lg:mt-2 lg:text-base lg:leading-snug xl:text-lg ${theme.body}`}
+      >
+        {title}
+      </h3>
+      <p className={`mt-2 line-clamp-3 text-xs leading-relaxed sm:text-sm lg:mt-1.5 lg:line-clamp-4 lg:text-[0.7rem] lg:leading-snug xl:text-xs ${theme.muted}`}>
+        {description}
+      </p>
+    </div>
+  );
+
+  const visualBlock = (
+    <div
+      className={`relative z-0 min-h-0 shrink-0 px-3 sm:px-4 lg:px-2.5 lg:py-0 ${
+        visualFirst
+          ? "h-[65%] pt-0 lg:h-auto lg:flex-[3]"
+          : "h-[65%] pb-0 lg:h-auto lg:flex-[3]"
+      }`}
+    >
+      <ExplainerCardVisual
+        tier={tier}
+        grad={grad}
+        visual={theme.visual}
+        iconTextClass={iconTextClass}
+        mobileEdge={visualFirst ? "flush-top" : "flush-bottom"}
+      />
+    </div>
+  );
 
   return (
-    <div className="flex min-h-[13rem] flex-col rounded-lg border border-zinc-200 bg-white px-4 py-5 shadow-sm sm:min-h-[15rem] sm:px-5 sm:py-6 lg:min-h-[17rem]">
-      <div
-        className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br shadow-sm sm:h-12 sm:w-12 ${grad} ${tierTagText(tier)}`}
-      >
-        <StatusGlyphByTier tier={tier} />
+    <article
+      className={`relative flex h-[24rem] w-full flex-col overflow-hidden rounded-3xl shadow-sm sm:h-[29rem] lg:aspect-[3/4] lg:h-auto lg:max-h-[20rem] lg:rounded-2xl xl:max-h-[22rem] ${EXPLAINER_CARD_SHELL}`}
+    >
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col">
+        {visualFirst ? (
+          <>
+            {visualBlock}
+            {contentBlock}
+          </>
+        ) : (
+          <>
+            {contentBlock}
+            {visualBlock}
+          </>
+        )}
       </div>
-      <span
-        className={`mt-4 inline-flex w-fit rounded-full bg-gradient-to-br px-3 py-1 text-[0.65rem] font-bold uppercase tracking-wider sm:text-xs ${grad} ${tierTagText(tier)}`}
-      >
-        {tag}
-      </span>
-      <h3 className="mt-4 text-base font-bold text-zinc-900 sm:text-lg">{title}</h3>
-      <p className="mt-2 text-xs leading-relaxed text-zinc-600 sm:text-sm">{description}</p>
-    </div>
+    </article>
   );
 }
 
-function StatusGlyphByTier({ tier }: { tier: StatusTier }) {
-  const common = "h-6 w-6 shrink-0";
+function StatusGlyphByTier({ tier, className }: { tier: StatusTier; className?: string }) {
+  const common = className ?? "h-7 w-7 shrink-0 sm:h-8 sm:w-8 lg:h-6 lg:w-6";
   switch (tier) {
     case "clean":
       return (
@@ -429,6 +750,100 @@ function LookupResultCard({
   );
 }
 
+function slabRound(index: number): string {
+  if (index === 0) return "rounded-tl-2xl rounded-bl-2xl sm:rounded-tl-3xl sm:rounded-bl-3xl";
+  if (index === 1) return "rounded-bl-2xl sm:rounded-bl-3xl";
+  return "rounded-tr-2xl rounded-br-2xl rounded-bl-2xl sm:rounded-tr-3xl sm:rounded-br-3xl sm:rounded-bl-3xl";
+}
+
+/** Three columns: clearly different heights (short → mid → tall). */
+const HERO_STAT_SLABS = [
+  {
+    value: "50",
+    rank: "01",
+    caption: "/registered devices - allocheck",
+    slabHeight: "h-[9.5rem] sm:h-[11.5rem]",
+    valueSize: "text-[clamp(2.25rem,7vw,3.25rem)]",
+    bg: "bg-blue-950",
+    text: "text-white",
+    muted: "text-white/80",
+  },
+  {
+    value: "24",
+    rank: "02",
+    caption: "/stolen reported - registry",
+    slabHeight: "h-[14rem] sm:h-[17rem]",
+    valueSize: "text-[clamp(2.5rem,8vw,3.75rem)]",
+    bg: "bg-cyan-300",
+    text: "text-blue-950",
+    muted: "text-blue-950/75",
+  },
+  {
+    value: "26",
+    rank: "03",
+    caption: "/buyer checks - verified",
+    slabHeight: "h-[19rem] sm:h-[23rem]",
+    valueSize: "text-[clamp(2.75rem,9vw,4.25rem)]",
+    bg: "bg-cyan-400",
+    text: "text-blue-950",
+    muted: "text-blue-950/75",
+  },
+] as const;
+
+function HeroStatsBar() {
+  return (
+    <section className="bg-white px-4 pt-8 pb-2 sm:px-6 sm:pt-10 sm:pb-3" aria-label="Platform statistics">
+      <div className="mx-auto max-w-5xl">
+        <div className="grid grid-cols-3" role="list">
+          {HERO_STAT_SLABS.map((stat, index) => (
+            <article key={stat.rank} role="listitem" className="flex min-w-0 flex-col">
+              <div
+                className={`relative flex w-full flex-col overflow-hidden ${stat.slabHeight} ${stat.bg} ${slabRound(index)}`}
+              >
+                <div className={`flex flex-1 flex-col px-4 pt-5 sm:px-5 sm:pt-7 ${stat.text}`}>
+                  <div className="flex items-start justify-center">
+                    <span
+                      className={`${stat.valueSize} font-bold lowercase leading-none tracking-tight`}
+                    >
+                      {stat.value}
+                    </span>
+                    <span className={`ml-1 mt-1 text-sm font-light lowercase sm:text-base ${stat.muted}`}>
+                      (%)
+                    </span>
+                  </div>
+                </div>
+
+                <div
+                  className={`flex items-end justify-between gap-2 px-4 pb-4 text-[0.65rem] font-light lowercase leading-tight sm:px-5 sm:pb-5 sm:text-xs ${stat.text}`}
+                >
+                  <span className={stat.muted}>rank {stat.rank}/</span>
+                  <span className={`min-w-0 text-right ${stat.muted}`}>{stat.caption}</span>
+                </div>
+              </div>
+
+              <div
+                className={`flex-1 bg-white px-4 sm:px-5 ${
+                  index === 0 ? "min-h-[5rem] py-4 sm:min-h-[5.5rem] sm:py-5" : "min-h-0 py-0"
+                }`}
+              >
+                {index === 0 ? (
+                  <p className="text-2xl font-bold lowercase leading-[1.15] text-blue-950 sm:text-3xl md:text-4xl lg:text-[2.75rem]">
+                    device verification
+                    <br />
+                    allocheck
+                    <br />
+                    ranked
+                  </p>
+                ) : null}
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function VerifiedFromAlloCta({ shopUrl }: { shopUrl: string }) {
   return (
     <div className="rounded-xl border border-cyan-200/70 bg-gradient-to-br from-cyan-50 via-white to-blue-50 px-4 py-4 shadow-sm sm:px-5 sm:py-5">
@@ -493,23 +908,349 @@ function ResultPageActions({
   );
 }
 
-function AppHeader({ onLogoClick }: { onLogoClick: () => void }) {
+function CheckTrustBadges({ className = "" }: { className?: string }) {
   return (
-    <header className="border-b border-zinc-200/70 bg-white/90 shadow-sm backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center justify-start gap-4 px-4 py-2.5 sm:px-6 sm:py-3">
+    <div
+      className={`flex w-full snap-x snap-mandatory gap-1.5 overflow-x-auto rounded-full p-1 sm:grid sm:grid-cols-2 sm:gap-1 sm:overflow-visible ${heroFieldShell} ${className}`}
+    >
+      <div className="flex min-w-[11rem] snap-start items-center justify-center gap-2 rounded-full px-3 py-2 text-center text-xs font-medium sm:min-w-0 sm:px-4 sm:py-2.5 sm:text-sm">
+        <span className="text-blue-950">✓</span>
+        <span>Real-time Verification</span>
+      </div>
+      <div className="flex min-w-[10rem] snap-start items-center justify-center gap-2 rounded-full px-3 py-2 text-center text-xs font-medium sm:min-w-0 sm:px-4 sm:py-2.5 sm:text-sm">
+        <span className="text-blue-950">✓</span>
+        <span>Trusted Registry</span>
+      </div>
+    </div>
+  );
+}
+
+function CheckPhoneModal({
+  open,
+  onClose,
+  serial,
+  onSerialChange,
+  onSubmit,
+  loading,
+  loadingMessage,
+  error,
+  inputRef,
+}: {
+  open: boolean;
+  onClose: () => void;
+  serial: string;
+  onSerialChange: (value: string) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  loading: boolean;
+  loadingMessage: string;
+  error: string | null;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+}) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[90] flex items-center justify-center p-4 sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="check-phone-modal-title"
+    >
+      <button
+        type="button"
+        className="absolute inset-0 bg-zinc-950/55 backdrop-blur-sm"
+        aria-label="Close dialog"
+        onClick={onClose}
+        disabled={loading}
+      />
+      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-cyan-200/70 bg-white shadow-2xl shadow-cyan-500/15">
+        <div className="relative bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 px-5 py-4 pr-14 sm:px-6 sm:py-5 sm:pr-16">
+          <div id="check-phone-modal-title">
+            <AlloLogo onBrand />
+          </div>
+          <p className="mt-1 text-sm font-medium text-white/90">Verify a device before you buy</p>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-50 sm:right-4 sm:top-4"
+            aria-label="Close"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.25} aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {loading ? (
+          <LookupLoadingPanel message={loadingMessage} />
+        ) : (
+          <form onSubmit={onSubmit} className="space-y-3 p-5 sm:p-6">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-blue-950/70">
+                IMEI or Serial Number
+              </span>
+              <div className="relative">
+                <svg
+                  className="pointer-events-none absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-zinc-950"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.25}
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 21l-4.35-4.35m1.35-5.15a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"
+                  />
+                </svg>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  name="serial"
+                  autoComplete="off"
+                  placeholder="Enter phone IMEI or Serial Number"
+                  value={serial}
+                  onChange={(e) => onSerialChange(e.target.value)}
+                  className={`w-full rounded-full py-3 pr-4 pl-11 text-[0.95rem] shadow-sm outline-none transition placeholder:text-blue-950/75 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/35 sm:py-3.5 sm:text-base ${heroFieldShell}`}
+                />
+              </div>
+            </label>
+
+            <button
+              type="submit"
+              className={`${btnPartnerCta} group w-full justify-center py-3 sm:py-3.5`}
+            >
+              Check Now
+              <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
+            </button>
+
+            <CheckTrustBadges />
+
+            {error ? (
+              <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800">
+                {error}
+              </p>
+            ) : null}
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AppHeader({
+  onLogoClick,
+  onCheckPhone,
+}: {
+  onLogoClick: () => void;
+  onCheckPhone: () => void;
+}) {
+  return (
+    <header className="sticky top-0 z-50 border-b border-zinc-200/70 bg-white/90 shadow-sm backdrop-blur-xl">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2 sm:px-6 sm:py-2.5">
         <a
           href="#/"
           onClick={(e) => {
             e.preventDefault();
             onLogoClick();
           }}
-          className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+          className="min-w-0 shrink-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
         >
           <AlloLogo />
         </a>
+        <button type="button" onClick={onCheckPhone} className={btnNavCheck}>
+          Check Phone
+        </button>
       </div>
     </header>
   );
+}
+
+const footerLinkClass =
+  "text-sm font-medium text-cyan-100/85 transition hover:text-cyan-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400";
+
+function AppFooter() {
+  const year = new Date().getFullYear();
+
+  return (
+    <footer className="relative overflow-hidden bg-gradient-to-br from-blue-950 via-[#0c2744] to-blue-950 text-white">
+      <div
+        className="h-1 w-full bg-gradient-to-r from-cyan-400 via-cyan-300 to-blue-500"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_80%_at_10%_100%,rgba(34,211,238,0.18),transparent_55%)]"
+        aria-hidden
+      />
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_50%_at_100%_0%,rgba(59,130,246,0.22),transparent_50%)]"
+        aria-hidden
+      />
+
+      <div className="relative mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
+        <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
+          <div className="max-w-md text-center md:text-left">
+            <AlloLogo onBrand />
+            <p className="mt-4 text-xs leading-relaxed text-cyan-100/60">
+              AlloCheck is a subsidiary of{" "}
+              <a
+                href={alloShopUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-cyan-300 underline-offset-2 transition hover:text-white hover:underline"
+              >
+                Allo
+              </a>
+            </p>
+          </div>
+
+          <nav className="flex flex-col items-center md:items-end" aria-label="Footer legal and support">
+            <p className="mb-2 hidden text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-cyan-300/90 md:block">
+              Legal & support
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 md:flex-col md:items-end md:gap-1">
+              <a href="#/privacy" className={footerLinkClass}>
+                Privacy
+              </a>
+              <a href="#/terms" className={footerLinkClass}>
+                Terms
+              </a>
+              <a href="#/contact" className={footerLinkClass}>
+                Contact
+              </a>
+              <a href="#/api-docs" className={footerLinkClass}>
+                API docs
+                <span className="text-cyan-100/50"> (soon)</span>
+              </a>
+            </div>
+          </nav>
+        </div>
+
+        <div className="mt-10 flex flex-col items-center justify-between gap-2 border-t border-white/10 pt-6 text-center sm:flex-row sm:text-left">
+          <p className="text-xs text-cyan-100/55">© {year} AlloCheck. All rights reserved.</p>
+          <p className="text-xs text-cyan-100/45">Device verification you can trust</p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function LegalPageLayout({
+  title,
+  children,
+  onHome,
+}: {
+  title: string;
+  children: ReactNode;
+  onHome: () => void;
+}) {
+  return (
+    <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
+      <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">{title}</h1>
+      <div className="mt-6 space-y-4 text-sm leading-relaxed text-zinc-600">{children}</div>
+      <button type="button" onClick={onHome} className={`${btnPartnerCtaRow} mt-10`}>
+        Back to home
+      </button>
+    </main>
+  );
+}
+
+function LegalPageContent({ route, onHome }: { route: LegalRouteKind; onHome: () => void }) {
+  switch (route) {
+    case "privacy":
+      return (
+        <LegalPageLayout title="Privacy Policy" onHome={onHome}>
+          <p>
+            AlloCheck processes device identifiers (such as IMEI or serial numbers) and related lookup
+            results to provide verification services. We use this information only to run checks, display
+            results to you, and support features such as share links when you choose to create them.
+          </p>
+          <p>
+            We may retain technical logs (for example IP address, request time, and error details) for
+            security and service reliability. Shared result links expire after a limited period configured
+            on our servers.
+          </p>
+          <p>
+            For privacy questions, contact us using the details on our Contact page. This policy may be
+            updated from time to time; continued use of AlloCheck after changes constitutes acceptance.
+          </p>
+        </LegalPageLayout>
+      );
+    case "terms":
+      return (
+        <LegalPageLayout title="Terms of Use" onHome={onHome}>
+          <p>
+            By using AlloCheck you agree to use the service lawfully and only for legitimate device
+            verification purposes. Results are provided for informational purposes and do not constitute
+            legal advice, a guarantee of ownership, or a warranty that a device will remain clear in all
+            registries.
+          </p>
+          <p>
+            You must not abuse the API or website (including automated scraping beyond fair use, attempts
+            to circumvent rate limits, or misuse of share links). We may suspend access if we detect abuse.
+          </p>
+          <p>
+            AlloCheck is operated as a subsidiary of Allo. These terms may be updated; the current version
+            applies when you use the service.
+          </p>
+        </LegalPageLayout>
+      );
+    case "contact":
+      return (
+        <LegalPageLayout title="Contact" onHome={onHome}>
+          <p>For general inquiries about AlloCheck, reach our team at:</p>
+          <p>
+            <a
+              href="mailto:support@allo.example"
+              className="font-semibold text-blue-950 underline-offset-2 hover:underline"
+            >
+              support@allo.example
+            </a>
+          </p>
+          <p>For partnership and API access:</p>
+          <p>
+            <a
+              href="mailto:partners@allo.example"
+              className="font-semibold text-blue-950 underline-offset-2 hover:underline"
+            >
+              partners@allo.example
+            </a>
+          </p>
+          <p>
+            Visit{" "}
+            <a
+              href={alloShopUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-blue-950 underline-offset-2 hover:underline"
+            >
+              Allo
+            </a>{" "}
+            for certified devices and retail support.
+          </p>
+        </LegalPageLayout>
+      );
+    case "api-docs":
+      return (
+        <LegalPageLayout title="API documentation" onHome={onHome}>
+          <p className="rounded-full border border-cyan-200/80 bg-gradient-to-r from-cyan-50 to-blue-50 px-4 py-3 text-center font-medium text-blue-950">
+            Coming soon
+          </p>
+          <p>
+            Partner and developer documentation for device lookup, registration, and certification APIs will
+            be published here. If you need early access, contact{" "}
+            <a
+              href="mailto:partners@allo.example"
+              className="font-semibold text-blue-950 underline-offset-2 hover:underline"
+            >
+              partners@allo.example
+            </a>
+            .
+          </p>
+        </LegalPageLayout>
+      );
+  }
 }
 
 export default function App() {
@@ -519,6 +1260,8 @@ export default function App() {
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const serialInputRef = useRef<HTMLInputElement | null>(null);
+  const modalInputRef = useRef<HTMLInputElement | null>(null);
+  const [checkModalOpen, setCheckModalOpen] = useState(false);
   const [appRoute, setAppRoute] = useState<AppRoute>(() =>
     typeof window !== "undefined" ? parseAppRouteFromHash() : { kind: "home" },
   );
@@ -551,6 +1294,22 @@ export default function App() {
     }, 1200);
     return () => clearInterval(t);
   }, [loading]);
+
+  useEffect(() => {
+    if (!checkModalOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusTimer = window.setTimeout(() => modalInputRef.current?.focus(), 50);
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCheckModalOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.clearTimeout(focusTimer);
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [checkModalOpen]);
 
   useEffect(() => {
     const sync = () => {
@@ -619,6 +1378,25 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  function openCheckModal() {
+    setError(null);
+    setCheckModalOpen(true);
+  }
+
+  function closeCheckModal() {
+    setCheckModalOpen(false);
+  }
+
+  function handleCheckPhoneNav() {
+    const route = parseAppRouteFromHash();
+    if (route.kind !== "home") {
+      goHome();
+      window.setTimeout(openCheckModal, 400);
+      return;
+    }
+    openCheckModal();
+  }
+
   function goToResultPage(payload: LookupResult) {
     storeResult(payload);
     setResultPayload(payload);
@@ -628,8 +1406,7 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function runLookup() {
     setError(null);
     setShareUrl(null);
     const trimmed = serial.trim();
@@ -655,6 +1432,7 @@ export default function App() {
         throw new Error(text || `Request failed (${res.status})`);
       }
       const data = (await res.json()) as LookupResult;
+      setCheckModalOpen(false);
       goToResultPage(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Lookup failed");
@@ -662,6 +1440,30 @@ export default function App() {
       setLoading(false);
     }
   }
+
+  async function onModalSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await runLookup();
+  }
+
+  async function onHeroSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    await runLookup();
+  }
+
+  const checkPhoneModal = (
+    <CheckPhoneModal
+      open={checkModalOpen}
+      onClose={closeCheckModal}
+      serial={serial}
+      onSerialChange={setSerial}
+      onSubmit={(e) => void onModalSubmit(e)}
+      loading={loading}
+      loadingMessage={loadingMessages[loadingMessageIndex]}
+      error={error}
+      inputRef={modalInputRef}
+    />
+  );
 
   const hero = heroImages[heroIndex];
   function goHomeFromShare() {
@@ -709,30 +1511,43 @@ export default function App() {
   }
 
   function handleCheckAnother() {
-    goHome();
     setError(null);
-    window.setTimeout(() => serialInputRef.current?.focus(), 500);
+    setSerial("");
+    openCheckModal();
+  }
+
+  if (
+    appRoute.kind === "privacy" ||
+    appRoute.kind === "terms" ||
+    appRoute.kind === "contact" ||
+    appRoute.kind === "api-docs"
+  ) {
+    return (
+      <div className="min-h-screen bg-white text-zinc-900">
+        <AppHeader onLogoClick={goHome} onCheckPhone={handleCheckPhoneNav} />
+        <LegalPageContent route={appRoute.kind} onHome={goHome} />
+        <AppFooter />
+        {checkPhoneModal}
+      </div>
+    );
   }
 
   if (appRoute.kind === "result") {
     return (
       <div className="min-h-screen bg-white text-zinc-900">
-        <AppHeader onLogoClick={goHome} />
+        <AppHeader onLogoClick={goHome} onCheckPhone={handleCheckPhoneNav} />
 
         <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-          <p className="text-center text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-zinc-900">
+          <h1 className="text-center text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl md:text-4xl">
             Verification result
-          </p>
-          <p className="mt-2 text-center text-sm text-zinc-600">
-            Review the device status and details below.
-          </p>
+          </h1>
 
           {!resultPayload ? (
             <div className="mt-10 text-center">
               <p className="rounded-lg border border-zinc-200 bg-white px-4 py-6 text-sm text-zinc-600">
                 No result to show. Run a new check from the home page.
               </p>
-              <button type="button" onClick={goHome} className={`${btnPrimary} mt-6`}>
+              <button type="button" onClick={openCheckModal} className={`${btnPrimary} mt-6`}>
                 Check a device
               </button>
             </div>
@@ -753,9 +1568,8 @@ export default function App() {
           )}
         </main>
 
-        <footer className="border-t border-zinc-200 bg-white px-4 py-10 text-center text-xs text-zinc-500 sm:px-6">
-          <p>AlloCheck — device verification.</p>
-        </footer>
+        <AppFooter />
+        {checkPhoneModal}
       </div>
     );
   }
@@ -766,15 +1580,12 @@ export default function App() {
 
     return (
       <div className="min-h-screen bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(59,130,246,0.12),transparent)] bg-zinc-50 text-zinc-900">
-        <AppHeader onLogoClick={goHomeFromShare} />
+        <AppHeader onLogoClick={goHomeFromShare} onCheckPhone={handleCheckPhoneNav} />
 
         <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-14">
-          <p className="text-center text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-blue-600">
+          <h1 className="text-center text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl md:text-4xl">
             Shared verification result
-          </p>
-          <p className="mt-2 text-center text-xs text-zinc-500">
-            Read-only snapshot. Anyone with the link can view these details.
-          </p>
+          </h1>
 
           {shareLoadState === "loading" && (
             <div className="mt-12 flex flex-col items-center gap-4 text-zinc-600">
@@ -812,176 +1623,183 @@ export default function App() {
                   </div>
                 ) : null}
               </div>
-              <div className="mt-8 flex justify-center">
-                <button type="button" onClick={goHomeFromShare} className={btnPrimary}>
+              <div className="mt-8 flex justify-center px-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    goHomeFromShare();
+                    window.setTimeout(openCheckModal, 150);
+                  }}
+                  className={`${btnPartnerCta} w-full max-w-lg justify-center px-10 py-4 text-base sm:w-auto sm:px-12 sm:py-4 sm:text-lg`}
+                >
                   Run your own check
+                  <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5 sm:h-6 sm:w-6" />
                 </button>
               </div>
             </>
           )}
         </main>
 
-        <footer className="border-t border-zinc-200 bg-white px-4 py-10 text-center text-xs text-zinc-500 sm:px-6">
-          <p>AlloCheck — device verification.</p>
-        </footer>
+        <AppFooter />
+        {checkPhoneModal}
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(59,130,246,0.12),transparent)] bg-zinc-50 text-zinc-900">
-      <AppHeader onLogoClick={goHome} />
+      <AppHeader onLogoClick={goHome} onCheckPhone={handleCheckPhoneNav} />
 
-      <section id="hero-search" className="w-full">
+      <section id="hero-search" className="w-full px-3 sm:px-5 md:px-6">
         <div className="w-full">
-          {/* Full-bleed rectangular banner — wide aspect, edge-to-edge */}
-          <div className="relative w-full overflow-hidden bg-zinc-200">
+          <div className="relative w-full overflow-hidden rounded-2xl bg-zinc-200 sm:rounded-3xl">
             <div className="relative aspect-[25/24] w-full min-h-[26.4rem] sm:aspect-[35/18] sm:min-h-[19.2rem] md:aspect-[175/54] md:min-h-[13.2rem] lg:min-h-[15.6rem]">
               <img
                 key={heroIndex}
                 src={hero.src}
                 alt={hero.alt}
-                className="absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ease-out"
+                className="absolute inset-0 h-full w-full rounded-2xl object-cover transition-opacity duration-700 ease-out sm:rounded-3xl"
               />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-zinc-950/45 via-zinc-900/10 to-transparent" />
               <div className="absolute inset-x-3 bottom-4 z-10 sm:inset-x-6 sm:bottom-8">
-                <form onSubmit={onSubmit} className="mx-auto flex w-full max-w-3xl flex-col items-center gap-2.5 sm:flex-row sm:items-end sm:gap-3">
-                  <label className="block w-full">
-                    <span className="sr-only">Enter phone IMEI or Serial Number</span>
-                    <div className="relative">
-                      <svg
-                        className="pointer-events-none absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-zinc-950 sm:h-6 sm:w-6"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2.25}
-                        aria-hidden
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M21 21l-4.35-4.35m1.35-5.15a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"
-                        />
-                      </svg>
-                      <input
-                        ref={serialInputRef}
-                        type="text"
-                        name="serial"
-                        autoComplete="off"
-                        placeholder="Enter phone IMEI or Serial Number"
-                        value={serial}
-                        onChange={(e) => setSerial(e.target.value)}
-                        className={`w-full rounded-full py-3 pr-4 pl-11 text-[0.95rem] shadow-[0_10px_30px_-12px_rgba(0,0,0,0.25)] outline-none transition placeholder:text-blue-950/75 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/35 sm:py-3.5 sm:pr-5 sm:pl-12 sm:text-base ${heroFieldShell}`}
-                      />
-                    </div>
-                  </label>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className={`${btnPartnerCta} w-full py-3 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:shrink-0 sm:py-3.5`}
+                {loading && !checkModalOpen ? (
+                  <div className="mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-white/40 bg-white/95 shadow-xl shadow-zinc-950/20 backdrop-blur-md">
+                    <LookupLoadingPanel message={loadingMessages[loadingMessageIndex]} />
+                  </div>
+                ) : (
+                  <form
+                    onSubmit={(e) => void onHeroSubmit(e)}
+                    className="mx-auto flex w-full max-w-3xl flex-col items-center gap-2.5 sm:flex-row sm:items-end sm:gap-3"
                   >
-                    {loading ? "Checking..." : "Check Now"}
-                  </button>
-                </form>
-                <div
-                  className={`mx-auto mt-2.5 flex w-full max-w-3xl snap-x snap-mandatory gap-1.5 overflow-x-auto rounded-full p-1 sm:mt-3 sm:grid sm:grid-cols-2 sm:gap-1 sm:overflow-visible ${heroFieldShell}`}
-                >
-                  <div className="flex min-w-[11rem] snap-start items-center justify-center gap-2 rounded-full px-3 py-2 text-center text-xs font-medium sm:min-w-0 sm:px-4 sm:py-2.5 sm:text-sm">
-                    <span className="text-blue-950">✓</span>
-                    <span>Real-time Verification</span>
-                  </div>
-                  <div className="flex min-w-[10rem] snap-start items-center justify-center gap-2 rounded-full px-3 py-2 text-center text-xs font-medium sm:min-w-0 sm:px-4 sm:py-2.5 sm:text-sm">
-                    <span className="text-blue-950">✓</span>
-                    <span>Trusted Registry</span>
-                  </div>
-                </div>
-                {error && (
-                  <p className="mx-auto mt-3 w-full max-w-3xl rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800">
+                    <label className="block w-full">
+                      <span className="sr-only">Enter phone IMEI or Serial Number</span>
+                      <div className="relative">
+                        <svg
+                          className="pointer-events-none absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-zinc-950 sm:h-6 sm:w-6"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2.25}
+                          aria-hidden
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M21 21l-4.35-4.35m1.35-5.15a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"
+                          />
+                        </svg>
+                        <input
+                          ref={serialInputRef}
+                          type="text"
+                          name="serial"
+                          autoComplete="off"
+                          placeholder="Enter phone IMEI or Serial Number"
+                          value={serial}
+                          onChange={(e) => setSerial(e.target.value)}
+                          className={`w-full rounded-full py-3 pr-4 pl-11 text-[0.95rem] shadow-[0_10px_30px_-12px_rgba(0,0,0,0.25)] outline-none transition placeholder:text-blue-950/75 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/35 sm:py-3.5 sm:pr-5 sm:pl-12 sm:text-base ${heroFieldShell}`}
+                        />
+                      </div>
+                    </label>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className={`${btnPartnerCta} group w-full py-3 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:shrink-0 sm:py-3.5`}
+                    >
+                      {loading ? "Checking..." : "Check Now"}
+                      {!loading ? (
+                        <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
+                      ) : null}
+                    </button>
+                  </form>
+                )}
+                {!loading || checkModalOpen ? (
+                  <CheckTrustBadges className="mx-auto mt-2.5 max-w-3xl sm:mt-3" />
+                ) : null}
+                {error && !checkModalOpen ? (
+                  <p className="mx-auto mt-3 w-full max-w-3xl rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800 shadow-sm">
                     {error}
                   </p>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="bg-white px-4 py-5 sm:px-6 sm:py-6">
-        <div className="mx-auto grid max-w-6xl grid-cols-2 gap-y-6 md:grid-cols-4">
-          <div className="px-4 py-5 text-center sm:px-6">
-            <p className="text-2xl font-extrabold tracking-tight text-blue-700 sm:text-3xl">50,000+</p>
-            <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-zinc-600">Registered</p>
-          </div>
-          <div className="px-4 py-5 text-center sm:px-6">
-            <p className="text-2xl font-extrabold tracking-tight text-rose-600 sm:text-3xl">1,500+</p>
-            <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-zinc-600">Reported stolen</p>
-          </div>
-          <div className="px-4 py-5 text-center sm:px-6">
-            <p className="text-base font-extrabold tracking-tight text-teal-700 sm:text-lg">Local + international</p>
-            <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-zinc-600">Databases</p>
-          </div>
-          <div className="px-4 py-5 text-center sm:px-6">
-            <p className="text-2xl font-extrabold tracking-tight text-cyan-700 sm:text-3xl">Free</p>
-            <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-zinc-600">To use</p>
-          </div>
-        </div>
-      </section>
+      <HeroStatsBar />
 
-      <section className="border-b border-blue-900/30 bg-gradient-to-br from-blue-900 via-blue-950 to-teal-950 px-4 py-12 sm:px-6 sm:py-20">
-        <div className="mx-auto max-w-4xl text-center">
-          <h2 className="text-2xl font-extrabold tracking-tight text-white sm:text-4xl md:text-5xl">
-            Protect Yourself from Fraud
+      <section className="bg-white px-4 pt-2 pb-4 sm:px-6 sm:pt-4 sm:pb-6 lg:pb-8">
+        <div className="mx-auto max-w-6xl text-center">
+          <h2 className="text-balance bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 bg-clip-text text-5xl font-extrabold leading-[1.08] tracking-tight text-transparent sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl">
+            Protect Yourself From Fraud
           </h2>
         </div>
       </section>
 
-      <section className="border-b border-zinc-200 bg-white px-4 py-12 sm:px-6 sm:py-16">
-        <div className="mx-auto max-w-6xl">
+      <section className="bg-white px-4 pb-12 pt-8 sm:px-6 sm:pb-16 sm:pt-10 lg:pb-20 lg:pt-12">
+        <div className="mx-auto max-w-7xl">
           <div className="text-center">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-blue-600">
-              Device status
-            </p>
-            <h2 className="mt-2 text-2xl font-extrabold tracking-tight text-zinc-900 sm:text-4xl">
+            <h2 className="text-balance bg-gradient-to-r from-cyan-600 via-blue-700 to-blue-950 bg-clip-text text-2xl font-extrabold tracking-tight text-transparent sm:text-4xl md:text-5xl">
               What AlloCheck tells you
             </h2>
           </div>
 
-          <div className="mt-9 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-            <StatusExplainerCard
-              tier="clean"
-              tag="Clean"
-              title="Ready to buy"
-              description="No reported registry issues found for this device."
-            />
-            <StatusExplainerCard
-              tier="stolen"
-              tag="Stolen"
-              title="Do not proceed"
-              description="The device may be flagged as stolen or blacklisted."
-            />
-            <StatusExplainerCard
-              tier="finance"
-              tag="Financed"
-              title="Verify ownership"
-              description="The device may still be under a payment agreement."
-            />
-            <StatusExplainerCard
-              tier="finance"
-              tag="Locked"
-              title="Activation risk"
-              description="Carrier, payment, or account restrictions may block use."
-            />
+          <div className="mt-9 -mx-4 flex gap-5 overflow-x-auto px-4 pb-2 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] sm:-mx-6 sm:gap-6 sm:px-6 lg:mx-0 lg:grid lg:grid-cols-4 lg:items-stretch lg:gap-5 lg:overflow-visible lg:pb-0 lg:snap-none xl:gap-6 [&::-webkit-scrollbar]:hidden">
+            {(
+              [
+                {
+                  tier: "clean" as const,
+                  tag: "Clean",
+                  title: "Ready to buy",
+                  description: "No reported registry issues found for this device.",
+                  cardLayout: "content-first" as const,
+                },
+                {
+                  tier: "stolen" as const,
+                  tag: "Stolen",
+                  title: "Do not proceed",
+                  description: "The device may be flagged as stolen or blacklisted.",
+                  cardLayout: "visual-first" as const,
+                },
+                {
+                  tier: "finance" as const,
+                  tag: "Financed",
+                  title: "Verify ownership",
+                  description: "The device may still be under a payment agreement.",
+                  cardLayout: "content-first" as const,
+                },
+                {
+                  tier: "unknown" as const,
+                  tag: "Unknown device",
+                  title: "Do not buy",
+                  description: "Not registered in AlloCheck—may not be genuine or original.",
+                  cardLayout: "visual-first" as const,
+                  explainerTheme: EXPLAINER_DO_NOT_BUY_THEME,
+                  iconGrad: EXPLAINER_DO_NOT_BUY_ICON_GRAD,
+                  iconTextClass: "text-white",
+                },
+              ] as const
+            ).map((item) => (
+              <div
+                key={item.tag}
+                className="w-[min(79.2vw,21.6rem)] shrink-0 snap-center lg:flex lg:w-full lg:min-w-0"
+              >
+                <StatusExplainerCard
+                  tier={item.tier}
+                  tag={item.tag}
+                  title={item.title}
+                  description={item.description}
+                  cardLayout={item.cardLayout}
+                  theme={"explainerTheme" in item ? item.explainerTheme : undefined}
+                  iconGrad={"iconGrad" in item ? item.iconGrad : undefined}
+                  iconTextClass={"iconTextClass" in item ? item.iconTextClass : undefined}
+                />
+              </div>
+            ))}
           </div>
 
           <div className="mt-10 flex justify-center">
-            <button
-              type="button"
-              onClick={() => {
-                document.getElementById("hero-search")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                window.setTimeout(() => serialInputRef.current?.focus(), 500);
-              }}
-              className={btnPartnerCta}
-            >
+            <button type="button" onClick={openCheckModal} className={btnPartnerCta}>
               Check Now
               <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
             </button>
@@ -989,157 +1807,87 @@ export default function App() {
         </div>
       </section>
 
-      <section className="border-b border-zinc-200 bg-gradient-to-b from-zinc-100 to-zinc-50 px-4 py-10 sm:px-6 sm:py-16 lg:py-24">
+      <section className="bg-white px-4 py-10 sm:px-6 sm:py-16 lg:py-24">
         <div className="mx-auto max-w-6xl">
-          <div className="w-full overflow-hidden rounded-lg border border-white/80 bg-white shadow-[0_25px_60px_-15px_rgba(37,99,235,0.15)] ring-1 ring-blue-100/80">
-            {/* Mobile: stack. md+: strict 50% / 50% (1fr 1fr). */}
-            <div className="grid min-h-0 w-full grid-cols-1 md:min-h-[390px] md:grid-cols-[0.92fr_1.08fr] lg:min-h-[440px]">
-              {/* Content + CTA — half width on md+ */}
-              <div className="order-2 flex min-h-[280px] min-w-0 flex-col justify-between px-5 py-8 text-center sm:min-h-[320px] sm:px-8 sm:py-12 md:order-1 md:min-h-0 md:justify-center md:px-9 md:py-10 md:text-left lg:px-12">
-                <div className="mx-auto flex h-full w-full max-w-xl flex-col justify-between gap-8 md:mx-0 md:block md:h-auto">
-                  <div>
-                <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-blue-600">
-                  Allo Certified
-                </p>
-                <h2 className="mt-3 text-balance text-xl font-bold leading-tight text-zinc-900 sm:text-3xl md:mt-0 lg:text-[2rem] xl:text-4xl">
-                  Instead of Worrying, Buy from Allo Certified Phones with Warranty
-                </h2>
-                <p className="mt-4 text-pretty text-sm leading-relaxed text-zinc-600 sm:text-lg md:mt-0">
-                  Get a device that has already passed verification—backed by warranty and the Allo network.
-                </p>
-                  </div>
-                <div className="flex justify-center md:mt-6 md:justify-start">
-                  <a href="#" className={btnPrimaryLg}>
-                    Buy Phone from Allo
-                  </a>
-                </div>
-                </div>
-              </div>
-
-              {/* Visual — half width on md+; fills its column */}
-              <div className="relative order-1 min-h-[260px] overflow-hidden bg-blue-950 sm:min-h-[320px] md:order-2 md:min-h-full">
-                <img
-                  src={heroImages[0].src}
-                  alt="Allo Certified phones"
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-blue-950/55 via-blue-950/5 to-transparent md:bg-gradient-to-r md:from-transparent md:via-transparent md:to-blue-950/20" />
-                <div className="absolute bottom-5 left-5 rounded-lg bg-white/90 px-4 py-3 shadow-lg backdrop-blur-sm sm:bottom-6 sm:left-6">
-                  <p className="text-sm font-bold text-blue-900 sm:text-base">Allo Certified</p>
-                  <p className="mt-1 text-xs font-medium text-zinc-600">Verified phones with warranty</p>
-                </div>
-                <div className="hidden">
-                  <div className="mx-auto aspect-[9/19] w-full max-w-[220px] rounded-[2rem] border-[5px] border-blue-900 bg-zinc-900 shadow-2xl sm:max-w-[240px] md:max-w-[min(100%,260px)] md:min-h-[300px] lg:min-h-[320px]">
-                    <div className="mx-auto mt-3 h-4 w-16 rounded-full bg-zinc-800 sm:mt-4 sm:h-5 sm:w-20" />
-                    <div className="mx-auto mt-8 flex min-h-[120px] flex-1 items-center justify-center text-5xl sm:mt-10 sm:min-h-[140px] sm:text-6xl md:text-7xl">
-                      📱
-                    </div>
-                  </div>
-                  <p className="mt-6 text-center text-sm font-semibold text-blue-800 sm:mt-8 sm:text-base lg:text-lg">
-                    Allo Certified
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="partners" className="scroll-mt-20 bg-blue-950 px-4 py-12 sm:px-6 sm:py-20">
-        <div className="mx-auto max-w-6xl">
-          <div className="overflow-hidden rounded-2xl border border-cyan-500/20 bg-blue-900/50 shadow-2xl shadow-black/40">
-            <div className="flex flex-col lg:min-h-[320px] lg:flex-row lg:items-stretch">
-              <div className="relative min-h-[240px] w-full lg:min-h-[min(22rem,100%)] lg:w-[48%] lg:flex-shrink-0 lg:self-stretch">
-                <PartnerBannerImage src={partnersBannerSrc} />
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-blue-950/70 via-blue-950/25 to-transparent lg:bg-gradient-to-r lg:from-blue-950/85 lg:via-blue-950/35 lg:to-transparent" />
-              </div>
-              <div className="flex flex-1 flex-col justify-center px-5 py-8 sm:px-10 sm:py-12 lg:px-12 lg:py-14">
-                <div className="mx-auto max-w-xl text-center lg:mx-0 lg:max-w-none lg:text-left">
-                  <h2 className="text-xl font-bold text-white sm:text-3xl md:text-4xl">
-                    Grow Your Business with Allo
-                  </h2>
-                  <p className="mt-3 text-base leading-relaxed text-cyan-100/90 sm:mt-4 sm:text-lg">
-                    Check, get your device registered & certified—reach buyers who value trust.
-                  </p>
-                  <ul className="mt-8 flex flex-col gap-3 text-left text-cyan-50/95">
-                    <li className="flex gap-3">
-                      <span className="mt-0.5 shrink-0 text-cyan-400">✓</span>
-                      <span>API and dashboard to register and update device status</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="mt-0.5 shrink-0 text-cyan-400">✓</span>
-                      <span>Certified inventory and partner visibility</span>
-                    </li>
-                    <li className="flex gap-3">
-                      <span className="mt-0.5 shrink-0 text-cyan-400">✓</span>
-                      <span>Dedicated flows for vendors and enterprise</span>
-                    </li>
-                  </ul>
-                  <div className="mt-10 flex justify-center lg:justify-start">
-                    <a href="mailto:partners@allo.example" className={btnPartnerCta}>
-                      Become partner
-                      <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <footer className="border-t border-zinc-200 bg-white px-4 py-10 text-center text-xs text-zinc-500 sm:px-6">
-        <p>AlloCheck — device verification.</p>
-      </footer>
-
-      {loading && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-blue-950/80 px-4 backdrop-blur-md">
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-cyan-200/35 bg-gradient-to-br from-blue-950/90 via-blue-900/85 to-teal-950/90 p-10 text-center text-white shadow-2xl ring-1 ring-cyan-400/20">
-            <div className="relative mx-auto mb-8 flex h-36 w-36 items-center justify-center sm:h-40 sm:w-40">
-              {/* Ambient glow */}
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-400/35 via-blue-500/25 to-blue-600/30 blur-2xl" />
-              {/* Outer static ring */}
-              <div className="absolute inset-2 rounded-full border-[3px] border-white/10" />
-              {/* Primary spinning arc */}
-              <div
-                className="absolute inset-2 rounded-full border-[3px] border-transparent border-t-cyan-300 border-r-sky-400 animate-spin"
-                style={{ animationDuration: "1.1s" }}
-              />
-              {/* Counter-rotating inner arc */}
-              <div className="absolute inset-5 scale-x-[-1]">
-                <div
-                  className="h-full w-full rounded-full border-[2px] border-transparent border-b-cyan-200/90 border-l-blue-300/80 animate-spin"
-                  style={{ animationDuration: "0.85s" }}
-                />
-              </div>
-              {/* Center hub */}
-              <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-white/20 to-white/5 shadow-inner ring-1 ring-white/25 backdrop-blur-sm">
-                <svg
-                  className="relative z-10 h-8 w-8 text-cyan-100"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.75}
-                  aria-hidden
+          <div className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 md:gap-8 lg:gap-10">
+            <div className="order-2 flex flex-col justify-center rounded-2xl bg-cyan-300 px-6 py-8 text-center shadow-lg shadow-blue-950/5 sm:px-10 sm:py-12 md:order-1 md:text-left lg:px-12 lg:py-14">
+              <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-blue-950/75">Allo Certified</p>
+              <h2 className="mt-3 text-balance text-xl font-bold leading-tight text-blue-950 sm:text-3xl lg:text-4xl">
+                Instead of Worrying, Buy from Allo Certified Phones with Warranty
+              </h2>
+              <p className="mt-4 text-pretty text-sm leading-relaxed text-blue-950/75 sm:text-lg">
+                Get a device that has already passed verification—backed by warranty and the Allo network.
+              </p>
+              <div className="mt-6 flex justify-center md:mt-8 md:justify-start">
+                <a
+                  href={alloShopUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={btnAlloCertifiedShopRow}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M21 21l-4.35-4.35m1.35-5.15a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"
-                  />
-                </svg>
+                  Buy original phones from Allo
+                  <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
+                </a>
               </div>
             </div>
-            <p className="text-[0.7rem] uppercase tracking-[0.2em] text-cyan-200/90">AlloCheck Lookup</p>
-            <h3 className="mt-2 min-h-[2.5rem] text-2xl font-bold transition-all duration-300 sm:min-h-[3rem] sm:text-3xl">
-              {loadingMessages[loadingMessageIndex]}
-            </h3>
-            <p className="mt-3 text-sm text-blue-100/90 sm:text-base">
-              Please wait while we verify the device across available records.
-            </p>
+
+            <SplitSectionImageCard mdOrder="md:order-2">
+              <img
+                src={heroImages[0].src}
+                alt="Allo Certified phones"
+                className="absolute inset-0 z-0 h-full w-full object-cover"
+              />
+            </SplitSectionImageCard>
           </div>
         </div>
-      )}
+      </section>
+
+      <section id="partners" className="scroll-mt-20 bg-white px-4 py-10 sm:px-6 sm:py-16 lg:py-24">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 md:gap-8 lg:gap-10">
+            <div className="order-2 flex flex-col justify-center rounded-2xl bg-blue-950 px-6 py-8 text-center shadow-lg shadow-blue-950/20 sm:px-10 sm:py-12 md:order-1 md:text-left lg:px-12 lg:py-14">
+              <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-cyan-300/90">
+                For business
+              </p>
+              <h2 className="mt-3 text-balance text-xl font-bold leading-tight text-white sm:text-3xl lg:text-4xl">
+                Grow Your Business with Allo
+              </h2>
+              <p className="mt-4 text-pretty text-sm leading-relaxed text-cyan-100/90 sm:text-lg">
+                Check, get your device registered & certified—reach buyers who value trust.
+              </p>
+              <ul className="mt-6 flex flex-col gap-3 text-left text-cyan-50/95 sm:mt-8">
+                <li className="flex gap-3">
+                  <span className="mt-0.5 shrink-0 text-cyan-400">✓</span>
+                  <span>API and dashboard to register and update device status</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="mt-0.5 shrink-0 text-cyan-400">✓</span>
+                  <span>Certified inventory and partner visibility</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="mt-0.5 shrink-0 text-cyan-400">✓</span>
+                  <span>Dedicated flows for vendors and enterprise</span>
+                </li>
+              </ul>
+              <div className="mt-6 flex justify-center md:mt-8 md:justify-start">
+                <a href="mailto:partners@allo.example" className={btnPartnerCta}>
+                  Become partner
+                  <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
+                </a>
+              </div>
+            </div>
+
+            <SplitSectionImageCard mdOrder="md:order-2">
+              <PartnerBannerImage src={partnersBannerSrc} />
+              <BusinessGrowthChartOverlay />
+            </SplitSectionImageCard>
+          </div>
+        </div>
+      </section>
+
+      <AppFooter />
+
+      {checkPhoneModal}
     </div>
   );
 }
