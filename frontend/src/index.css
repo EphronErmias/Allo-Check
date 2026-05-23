@@ -1,1 +1,51 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand: #5a81fa;
+  --color-brand-hover: #4a71e8;
+  --color-brand-navy: #2c3d8f;
+  --color-brand-navy-hover: #243266;
+  --color-brand-ink: #1f1f1f;
+  --color-brand-muted: #646b83;
+  --color-brand-soft: #a8bbcb;
+  --color-brand-surface: #f3f3f3;
+  --color-brand-tint: #e1e9ff;
+  --color-brand-mist: #f2f5ff;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-brand-ink);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer components {
+  .allocheck-logo {
+    aspect-ratio: 707 / 353;
+    width: auto;
+    mask-image: url("/allocheck-logo.png");
+    mask-size: contain;
+    mask-repeat: no-repeat;
+    mask-position: center;
+    -webkit-mask-image: url("/allocheck-logo.png");
+    -webkit-mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+  }
+
+  .allocheck-logo--navy {
+    background-color: var(--color-brand-navy);
+  }
+
+  .allocheck-logo--white {
+    background-color: #fff;
+  }
+}

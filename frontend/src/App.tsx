@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import React, { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 
 type DisplayLevel = "SAFE" | "WARNING" | "BLOCKED";
 
@@ -25,23 +25,26 @@ const defaultPartnersBannerSrc =
 const partnersBannerSrc =
   import.meta.env.VITE_PARTNERS_BANNER_URL?.trim() || defaultPartnersBannerSrc;
 
-/** Matches partners banner / business image panel gradient (`partners-banner.svg`). */
-const alloBusinessImageGradient =
-  "bg-gradient-to-br from-[#1e3a8a] via-[#0e7490] to-[#164e63]";
-
 const alloShopUrl =
   import.meta.env.VITE_ALLO_SHOP_URL?.trim() || "https://allo.et";
 
-const heroImages = [
-  {
-    src: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=2400&h=1200&fit=crop&q=85",
-    alt: "Smartphones on display",
-  },
-  {
-    src: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=2400&h=1200&fit=crop&q=85",
-    alt: "Person checking a smartphone",
-  },
-] as const;
+/** Consistent homepage section spacing (vertical rhythm on each block; `<main>` stacks with no extra gap). */
+const homeSectionX = "px-4 sm:px-6";
+const homeSectionY = "py-8 sm:py-10 lg:py-12";
+const homeMainStack = "flex flex-col";
+const pageShell =
+  "min-h-screen bg-gradient-to-b from-brand-mist via-white to-brand-mist font-sans text-brand-ink";
+
+const brandCard = "rounded-2xl border border-brand-tint/80 bg-white shadow-sm shadow-brand/5";
+const brandEyebrow = "text-xs font-semibold uppercase tracking-widest text-brand";
+const brandHeading = "font-bold text-brand-ink";
+const brandBody = "text-brand-muted";
+const brandModalHeader = "bg-gradient-to-r from-brand via-brand to-brand-navy";
+
+const heroPhoneVisual = {
+  src: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=2400&h=1400&fit=crop&q=85",
+  alt: "Smartphone with verification overlay",
+} as const;
 
 const alloCertifiedImage = {
   src: "https://images.unsplash.com/photo-1556656793-08538906a9f8?w=2400&h=1200&fit=crop&q=85",
@@ -72,26 +75,45 @@ const EXPLAINER_DO_NOT_BUY_IMAGE = {
   alt: "Unregistered device — do not buy",
 } as const;
 
-const btnPrimary =
-  "inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-60";
+/** Solid CTA — navy secondary brand (#2C3D8F), same as Buy Certified Phones. */
+const btnSolid =
+  "group inline-flex items-center justify-center gap-2 rounded-full bg-brand-navy px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-navy-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-navy disabled:cursor-not-allowed disabled:opacity-60";
 
-const btnPartnerCta =
-  "group inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-cyan-400 to-cyan-300 px-8 py-3.5 text-base font-semibold text-blue-950 shadow-lg shadow-cyan-500/20 transition hover:from-cyan-300 hover:to-cyan-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300";
+const btnPrimary = btnSolid;
+const btnPartnerCta = btnSolid;
+const btnCheckNow = btnSolid;
 
-/** Same size as hero Check Now: full-width on small screens, `py-3` / `sm:py-3.5` to match submit button. */
-const btnPartnerCtaRow = `${btnPartnerCta} w-full justify-center py-3 sm:w-auto sm:shrink-0 sm:py-3.5`;
+/** Row layout: matches hero Check Now footprint on result / share actions. */
+const btnActionRowLayout =
+  "w-full justify-center gap-2 px-8 py-3.5 text-sm font-semibold sm:w-auto sm:min-w-[12rem] sm:text-base";
 
-/** Allo Certified shop CTA: 50% stat slab fill, 24% stat slab label color. */
-const btnAlloCertifiedShop =
-  "group inline-flex items-center justify-center gap-2 rounded-full bg-blue-950 px-8 py-3.5 text-base font-bold lowercase tracking-tight text-cyan-300 shadow-lg shadow-blue-950/25 transition hover:bg-blue-900 hover:text-cyan-200";
-const btnAlloCertifiedShopRow = `${btnAlloCertifiedShop} w-full justify-center py-3 sm:w-auto sm:shrink-0 sm:py-3.5`;
-const btnNavCheck = `${btnPartnerCta} shrink-0 px-4 py-2 text-sm sm:px-5 sm:py-2.5`;
+/** Header Check Now — slightly larger than default solid CTA. */
+const btnHeaderCheckNow = `${btnSolid} px-7 py-3.5 text-sm sm:px-8 sm:text-base`;
+
+/** Hero Check Now — full width on mobile; inline beside input from sm+. */
+const btnHeroCheckNow = `${btnSolid} flex w-full items-center justify-center gap-2 whitespace-nowrap px-6 py-4 text-base font-semibold sm:inline-flex sm:w-auto sm:shrink-0 sm:px-9 sm:py-4`;
+
+/** Modal Check Now — enlarged full-width CTA in the check popup. */
+const btnModalCheckNow = `${btnSolid} flex w-full items-center justify-center gap-2 px-8 py-4 text-base font-semibold sm:py-4 sm:text-lg`;
+
+const btnPartnerCtaRow = `${btnSolid} ${btnActionRowLayout}`;
 
 const btnShareOutline =
-  "inline-flex w-full items-center justify-center rounded-full border-2 border-cyan-600 bg-white px-6 py-3 text-sm font-semibold text-cyan-800 transition hover:bg-cyan-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:shrink-0 sm:py-3.5";
+  "inline-flex items-center justify-center rounded-full border-2 border-brand-navy bg-white text-brand-navy transition hover:bg-brand-mist disabled:cursor-not-allowed disabled:opacity-60";
 
-const heroFieldShell =
-  "border border-cyan-200/60 bg-gradient-to-r from-cyan-200/55 via-cyan-100/45 to-blue-100/40 text-blue-950 backdrop-blur-sm";
+/** Full width of result card (max-w-md column) — matched height for paired actions. */
+const btnActionCardFull =
+  "box-border flex h-12 w-full items-center justify-center gap-2 px-6 text-sm font-semibold";
+const btnCheckNowCard = `${btnSolid} ${btnActionCardFull}`;
+const btnShareOutlineCard = `${btnShareOutline} ${btnActionCardFull}`;
+const btnPartnerCtaCard = `${btnSolid} ${btnActionCardFull}`;
+
+const heroSearchInput =
+  "w-full rounded-full border border-brand-tint bg-white py-3 pr-3 pl-10 text-sm text-brand-ink shadow-sm outline-none transition placeholder:text-brand-soft focus:border-brand focus:ring-2 focus:ring-brand/25 sm:text-base";
+
+/** Single trust badge — matches hero search pill styling. */
+const heroTrustPill =
+  "flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-brand-tint bg-white px-3 py-2.5 shadow-sm sm:gap-2 sm:px-4 sm:py-3";
 
 const loadingMessages = [
   "Searching...",
@@ -103,14 +125,14 @@ function LookupLoadingPanel({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center px-2 py-6 text-center sm:py-8" role="status" aria-live="polite">
       <div className="relative flex h-14 w-14 items-center justify-center">
-        <div className="absolute inset-0 rounded-full bg-cyan-400/20 blur-md" aria-hidden />
+        <div className="absolute inset-0 rounded-full bg-brand/20 blur-md" aria-hidden />
         <div
-          className="relative h-12 w-12 rounded-full border-[3px] border-cyan-100 border-t-cyan-500 border-r-blue-500 animate-spin"
+          className="relative h-12 w-12 rounded-full border-[3px] border-brand-tint border-t-brand border-r-brand-navy animate-spin"
           style={{ animationDuration: "0.9s" }}
           aria-hidden
         />
         <svg
-          className="absolute h-5 w-5 text-blue-950"
+          className="absolute h-5 w-5 text-brand-navy"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -124,13 +146,13 @@ function LookupLoadingPanel({ message }: { message: string }) {
           />
         </svg>
       </div>
-      <p className="mt-4 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-blue-950/55">
+      <p className="mt-4 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-brand-muted">
         AlloCheck lookup
       </p>
-      <p className="mt-1 min-h-[1.75rem] text-base font-bold text-blue-950 transition-all duration-300 sm:text-lg">
+      <p className="mt-1 min-h-[1.75rem] text-base font-bold text-brand-ink transition-all duration-300 sm:text-lg">
         {message}
       </p>
-      <p className="mt-1.5 text-xs text-zinc-500">Verifying across available records…</p>
+      <p className="mt-1.5 text-xs text-brand-muted">Verifying across available records…</p>
     </div>
   );
 }
@@ -145,9 +167,9 @@ function CheckLookupLoadingCard({
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-2xl border border-cyan-200/70 bg-white shadow-2xl shadow-cyan-500/15 ${className}`.trim()}
+      className={`overflow-hidden rounded-2xl border border-brand-tint bg-white shadow-2xl shadow-brand/15 ${className}`.trim()}
     >
-      <div className="relative bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 px-5 py-4 sm:px-6 sm:py-5">
+      <div className={`relative ${brandModalHeader} px-5 py-4 sm:px-6 sm:py-5`}>
         <AlloLogo onBrand />
         <p className="mt-1 text-sm font-medium text-white/90">Verify a device before you buy</p>
       </div>
@@ -162,12 +184,13 @@ type AppRoute =
   | { kind: "home" }
   | { kind: "result" }
   | { kind: "share"; token: string }
+  | { kind: "about" }
   | { kind: "privacy" }
   | { kind: "terms" }
   | { kind: "contact" }
   | { kind: "api-docs" };
 
-const legalRoutes = ["privacy", "terms", "contact", "api-docs"] as const;
+const legalRoutes = ["about", "privacy", "terms", "contact", "api-docs"] as const;
 type LegalRouteKind = (typeof legalRoutes)[number];
 
 function isLegalRouteKind(value: string): value is LegalRouteKind {
@@ -235,17 +258,15 @@ function ArrowRight({ className }: { className?: string }) {
   );
 }
 
-const splitSectionImageCardClass =
-  "relative order-1 min-h-[22rem] overflow-hidden rounded-2xl shadow-lg shadow-blue-950/5 sm:min-h-[24rem] md:min-h-[360px] lg:min-h-[420px]";
-
-function PartnerBannerImage({ src }: { src: string }) {
+function CheckIcon({ className = "h-4 w-4" }: { className?: string }) {
   return (
-    <img
-      src={src}
-      alt="Allo business partners"
-      className="absolute inset-0 z-0 h-full w-full object-cover"
-      loading="lazy"
-    />
+    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path
+        fillRule="evenodd"
+        d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+        clipRule="evenodd"
+      />
+    </svg>
   );
 }
 
@@ -256,21 +277,21 @@ function BusinessGrowthChartOverlay() {
 
   return (
     <div
-      className="pointer-events-none absolute bottom-4 right-4 z-10 w-[min(100%,18rem)] origin-bottom-right scale-50 sm:bottom-6 sm:right-5"
+      className="pointer-events-none absolute top-4 right-4 z-10 w-[min(100%,18rem)] origin-top-right scale-50 sm:top-6 sm:right-5"
       aria-hidden
     >
-      <div className="overflow-hidden rounded-xl border border-white/70 bg-white/90 p-3 shadow-[0_16px_40px_-12px_rgba(23,37,84,0.35)] ring-1 ring-cyan-500/10 backdrop-blur-md sm:p-3.5">
+      <div className="overflow-hidden rounded-2xl border border-white/70 bg-white/90 p-3 shadow-[0_16px_40px_-12px_rgba(44,61,143,0.2)] ring-1 ring-brand/10 backdrop-blur-md sm:p-3.5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[0.58rem] font-semibold uppercase tracking-[0.14em] text-blue-950/45">
-              Certified sales
+            <p className="text-[0.58rem] font-semibold uppercase tracking-[0.14em] text-brand-muted">
+              Partner revenue
             </p>
-            <p className="mt-0.5 text-xl font-bold tabular-nums tracking-tight text-blue-950 sm:text-[1.35rem]">
+            <p className="mt-0.5 text-xl font-bold tabular-nums tracking-tight text-brand-navy sm:text-[1.35rem]">
               +24%
             </p>
           </div>
-          <span className="shrink-0 rounded-full bg-gradient-to-r from-cyan-50 to-emerald-50 px-2 py-0.5 text-[0.62rem] font-semibold text-emerald-700 ring-1 ring-emerald-200/80">
-            ↑ MoM
+          <span className="shrink-0 rounded-full bg-brand-mist px-2 py-0.5 text-[0.62rem] font-semibold text-brand ring-1 ring-brand-tint">
+            MoM
           </span>
         </div>
 
@@ -282,12 +303,12 @@ function BusinessGrowthChartOverlay() {
         >
           <defs>
             <linearGradient id={areaGradId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.45" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.02" />
+              <stop offset="0%" stopColor="#5A81FA" stopOpacity="0.45" />
+              <stop offset="100%" stopColor="#2C3D8F" stopOpacity="0.02" />
             </linearGradient>
             <linearGradient id={lineGradId} x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#22d3ee" />
-              <stop offset="100%" stopColor="#2563eb" />
+              <stop offset="0%" stopColor="#5A81FA" />
+              <stop offset="100%" stopColor="#2C3D8F" />
             </linearGradient>
           </defs>
           <line x1="0" y1="58" x2="220" y2="58" stroke="#e2e8f0" strokeWidth="1" />
@@ -305,33 +326,16 @@ function BusinessGrowthChartOverlay() {
             strokeLinecap="round"
             strokeLinejoin="round"
           />
-          <circle cx="220" cy="4" r="3.5" fill="#22d3ee" stroke="#fff" strokeWidth="2" />
+          <circle cx="220" cy="4" r="3.5" fill="#5A81FA" stroke="#fff" strokeWidth="2" />
         </svg>
 
-        <div className="mt-2 flex items-center justify-between gap-2 border-t border-slate-100/90 pt-2 text-[0.58rem] font-medium text-slate-500">
+        <div className="mt-2 flex items-center justify-between gap-2 border-t border-brand-surface pt-2 text-[0.58rem] font-medium text-brand-muted">
           <span>Jan</span>
           <span>Mar</span>
           <span>May</span>
           <span>Jul</span>
         </div>
       </div>
-    </div>
-  );
-}
-
-function SplitSectionImageCard({
-  children,
-  className = "",
-  mdOrder = "md:order-2",
-}: {
-  children: ReactNode;
-  className?: string;
-  mdOrder?: string;
-}) {
-  return (
-    <div className={`${splitSectionImageCardClass} ${mdOrder} ${className}`.trim()}>
-      <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-t from-blue-950/25 via-blue-950/5 to-transparent" />
-      {children}
     </div>
   );
 }
@@ -343,50 +347,19 @@ function AlloLogo({
 }: {
   className?: string;
   compact?: boolean;
-  /** Light text for cyan/blue brand backgrounds (e.g. check modal header). */
+  /** White wordmark for navy/brand backgrounds (footer, modal header). */
   onBrand?: boolean;
 }) {
-  const gradId = useId().replace(/:/g, "");
-  const iconSize = compact ? 28 : 36;
   return (
-    <div className={`flex items-center gap-1.5 sm:gap-2 ${className}`}>
-      <svg
-        width={iconSize}
-        height={iconSize}
-        viewBox="0 0 40 40"
-        fill="none"
-        className="shrink-0"
-        aria-hidden
-      >
-        <defs>
-          <linearGradient id={gradId} x1="0" y1="20" x2="40" y2="20" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#22d3ee" />
-            <stop stopColor="#67e8f9" />
-          </linearGradient>
-        </defs>
-        <rect width="40" height="40" rx="10" fill={`url(#${gradId})`} />
-        <path
-          d="M12 26V14h4.2l3.8 7.2L23.8 14H28v12h-3.2v-7.2l-3.4 7.2h-2.8l-3.4-7.2V26H12z"
-          className="fill-blue-950"
-        />
-      </svg>
-      <span
-        className={`font-bold tracking-tight ${compact ? "text-base" : "text-xl"} ${
-          onBrand ? "text-white" : "text-zinc-900"
-        }`}
-      >
-        Allo
-        <span
-          className={
-            onBrand
-              ? "text-cyan-100"
-              : "bg-gradient-to-r from-cyan-400 to-cyan-300 bg-clip-text text-transparent"
-          }
-        >
-          Check
-        </span>
-      </span>
-    </div>
+    <div
+      role="img"
+      aria-label="AlloCheck"
+      className={`allocheck-logo shrink-0 ${
+        compact
+          ? "h-14 -my-[0.875rem]"
+          : "h-16 -my-4 sm:h-[4.5rem] sm:-my-[1.125rem]"
+      } ${onBrand ? "allocheck-logo--white" : "allocheck-logo--navy"} ${className}`}
+    />
   );
 }
 
@@ -459,22 +432,34 @@ function tierTextMuted(tier: StatusTier): string {
   }
 }
 
-function tierIconWrap(tier: StatusTier): string {
+function tierLineIconClass(tier: StatusTier): string {
   switch (tier) {
+    case "clean":
+      return "border-emerald-500/40 text-emerald-600";
+    case "stolen":
+      return "border-rose-500/40 text-rose-600";
+    case "finance":
+      return "border-amber-500/40 text-amber-600";
     case "unknown":
-      return "bg-amber-950/10 text-amber-950 ring-amber-950/20";
+      return "border-violet-500/40 text-violet-600";
     default:
-      return "bg-white/15 text-white ring-white/25";
+      return "border-brand-soft text-brand-muted";
   }
 }
 
-function tierTagText(tier: StatusTier): string {
-  return tier === "unknown" ? "text-amber-950" : "text-white";
+/** Result header icon on gradient backgrounds. */
+function tierIconWrap(tier: StatusTier): string {
+  switch (tier) {
+    case "unknown":
+      return "bg-amber-950/10 text-amber-950 ring-amber-950/30";
+    default:
+      return "bg-white/10 text-white ring-white/30";
+  }
 }
 
-const EXPLAINER_CARD_SHELL = "bg-white border border-zinc-200/70 shadow-sm";
-const EXPLAINER_CARD_BODY = "text-zinc-900";
-const EXPLAINER_CARD_MUTED = "text-zinc-500";
+const EXPLAINER_CARD_SHELL = `${brandCard}`;
+const EXPLAINER_CARD_BODY = "text-brand-ink";
+const EXPLAINER_CARD_MUTED = "text-brand-muted";
 
 const EXPLAINER_CARD_THEME: Record<
   StatusTier,
@@ -514,25 +499,17 @@ const EXPLAINER_DO_NOT_BUY_THEME: ExplainerCardTheme = {
   muted: EXPLAINER_CARD_MUTED,
 };
 
-const EXPLAINER_DO_NOT_BUY_ICON_GRAD = "from-violet-500 via-purple-600 to-violet-950";
+const EXPLAINER_DO_NOT_BUY_ICON_LINE = "border-violet-500/40 text-violet-600";
 
-function ExplainerCardVisual({
-  image,
-  mobileEdge = "default",
-}: {
-  image: { src: string; alt: string };
-  mobileEdge?: "default" | "flush-bottom" | "flush-top";
-}) {
-  const radiusClass =
-    mobileEdge === "flush-bottom"
-      ? "rounded-t-2xl rounded-b-none"
-      : mobileEdge === "flush-top"
-        ? "rounded-b-2xl rounded-t-none"
-        : "rounded-t-2xl rounded-b-xl";
-
+function ExplainerCardVisual({ image }: { image: { src: string; alt: string } }) {
   return (
-    <div className={`relative h-full w-full overflow-hidden bg-zinc-200/90 ${radiusClass}`}>
-      <img src={image.src} alt={image.alt} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+    <div className="relative h-full w-full overflow-hidden rounded-xl bg-zinc-200/90 sm:rounded-2xl">
+      <img
+        src={image.src}
+        alt={image.alt}
+        className="absolute inset-0 h-full w-full rounded-xl object-cover sm:rounded-2xl"
+        loading="lazy"
+      />
     </div>
   );
 }
@@ -543,20 +520,18 @@ function StatusExplainerCard({
   description,
   cardLayout = "content-first",
   theme: themeOverride,
-  iconGrad,
-  iconTextClass,
+  iconLineClass,
 }: {
   tier: StatusTier;
   title: string;
   description: string;
   cardLayout?: "content-first" | "visual-first";
   theme?: ExplainerCardTheme;
-  iconGrad?: string;
-  iconTextClass?: string;
+  iconLineClass?: string;
 }) {
-  const grad = iconGrad ?? tierHeaderGradient(tier);
   const theme = themeOverride ?? EXPLAINER_CARD_THEME[tier];
   const visualFirst = cardLayout === "visual-first";
+  const lineIcon = iconLineClass ?? tierLineIconClass(tier);
 
   const contentBlock = (
     <div
@@ -573,10 +548,10 @@ function StatusExplainerCard({
           {title}
         </h3>
         <div
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br shadow-sm ring-1 ring-black/5 sm:h-11 sm:w-11 lg:h-9 lg:w-9 ${grad} ${iconTextClass ?? tierTagText(tier)}`}
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border bg-white/90 backdrop-blur-sm sm:h-12 sm:w-12 lg:h-10 lg:w-10 ${lineIcon}`}
           aria-hidden
         >
-          <StatusGlyphByTier tier={tier} className="h-5 w-5 sm:h-5 sm:w-5 lg:h-4 lg:w-4" />
+          <StatusLineIcon tier={tier} className="h-6 w-6 sm:h-6 sm:w-6 lg:h-5 lg:w-5" />
         </div>
       </div>
       <p className={`mt-2 line-clamp-3 text-xs leading-relaxed sm:text-sm lg:mt-1.5 lg:line-clamp-4 lg:text-[0.7rem] lg:leading-snug xl:text-xs ${theme.muted}`}>
@@ -593,16 +568,13 @@ function StatusExplainerCard({
           : "h-[65%] pb-0 lg:h-auto lg:flex-[3]"
       }`}
     >
-      <ExplainerCardVisual
-        image={theme.image}
-        mobileEdge={visualFirst ? "flush-top" : "flush-bottom"}
-      />
+      <ExplainerCardVisual image={theme.image} />
     </div>
   );
 
   return (
     <article
-      className={`relative flex h-[24rem] w-full flex-col overflow-hidden rounded-3xl sm:h-[29rem] lg:aspect-[3/4] lg:h-auto lg:max-h-[20rem] lg:rounded-2xl xl:max-h-[22rem] ${EXPLAINER_CARD_SHELL}`}
+      className={`relative flex h-[24rem] w-full flex-col overflow-hidden rounded-2xl sm:h-[29rem] lg:aspect-[3/4] lg:h-auto lg:max-h-[20rem] xl:max-h-[22rem] ${EXPLAINER_CARD_SHELL}`}
     >
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         {visualFirst ? (
@@ -621,40 +593,49 @@ function StatusExplainerCard({
   );
 }
 
-function StatusGlyphByTier({ tier, className }: { tier: StatusTier; className?: string }) {
-  const common = className ?? "h-7 w-7 shrink-0 sm:h-8 sm:w-8 lg:h-6 lg:w-6";
+/** Line-style icons for explainer cards and result headers. */
+function StatusLineIcon({ tier, className }: { tier: StatusTier; className?: string }) {
+  const common = className ?? "h-6 w-6 shrink-0";
+  const stroke = 1.5;
   switch (tier) {
     case "clean":
       return (
-        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={stroke} aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
         </svg>
       );
     case "unknown":
       return (
-        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={stroke} aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M12 18h.008v.008H12V18z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25c5.385 0 9.75 4.365 9.75 9.75S17.385 21.75 12 21.75 2.25 17.385 2.25 12 6.615 2.25 12 2.25z" />
         </svg>
       );
     case "finance":
       return (
-        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={stroke} aria-hidden>
           <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
         </svg>
       );
     case "stolen":
       return (
-        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={stroke} aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25c5.385 0 9.75 4.365 9.75 9.75S17.385 21.75 12 21.75 2.25 17.385 2.25 12 6.615 2.25 12 2.25z" />
         </svg>
       );
     default:
       return (
-        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+        <svg className={common} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={stroke} aria-hidden>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.008v.008H12v-.008z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 2.25c5.385 0 9.75 4.365 9.75 9.75S17.385 21.75 12 21.75 2.25 17.385 2.25 12 6.615 2.25 12 2.25z" />
         </svg>
       );
   }
+}
+
+function StatusGlyphByTier({ tier, className }: { tier: StatusTier; className?: string }) {
+  return <StatusLineIcon tier={tier} className={className ?? "h-7 w-7 shrink-0 sm:h-8 sm:w-8 lg:h-6 lg:w-6"} />;
 }
 
 function formatImeiDisplay(imei?: string | null): string {
@@ -698,9 +679,11 @@ function detailLockStatus(tier: StatusTier, status?: string): string {
 
 function DeviceDetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-zinc-200 px-4 py-3.5 last:border-b-0 sm:px-5 sm:py-4">
-      <span className="shrink-0 text-sm text-zinc-500">{label}</span>
-      <span className="min-w-0 text-right text-sm font-medium text-zinc-900">{value}</span>
+    <div className="grid grid-cols-[42%_1fr] items-start border-b border-brand-tint/70 py-2.5 last:border-b-0">
+      <span className="pr-3 text-xs leading-snug text-brand-muted">{label}</span>
+      <span className="min-w-0 pl-3 text-right text-xs font-medium leading-snug text-brand-ink sm:text-sm">
+        {value}
+      </span>
     </div>
   );
 }
@@ -715,54 +698,63 @@ function LookupResultCard({
   const tier = resolveStatusTier(result);
   const tierStyle = TIER_COPY[tier];
   const grad = tierHeaderGradient(tier);
+  const statusEyebrow =
+    tier === "unknown" ? "text-amber-950/65" : "text-white/75";
 
   return (
     <div
-      className={`${className} mx-auto w-full max-w-3xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm`}
+      className={`${className} mx-auto w-full max-w-md overflow-hidden rounded-xl border border-brand-tint/90 bg-white shadow-md shadow-brand-navy/[0.06]`}
       role="region"
       aria-label="Verification result"
     >
-      <div className={`relative bg-gradient-to-br ${grad} px-4 py-4 sm:px-5 sm:py-5`}>
+      <div className={`relative bg-gradient-to-br ${grad} px-4 py-3.5 sm:px-5 sm:py-4`}>
         <div
-          className={`pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_80%_at_100%_0%,rgba(255,255,255,0.22),transparent)] ${tier === "unknown" ? "opacity-90" : ""}`}
+          className={`pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_85%_70%_at_100%_0%,rgba(255,255,255,0.2),transparent)] ${tier === "unknown" ? "opacity-90" : ""}`}
         />
-        <div className="relative">
-          <p
-            className={`text-[0.6rem] font-semibold uppercase tracking-[0.18em] ${tier === "unknown" ? "text-amber-950/70" : "text-white/80"}`}
+        <div className="relative flex items-start gap-3">
+          <div
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ring-1 backdrop-blur-sm ${tierIconWrap(tier)}`}
           >
-            Status
-          </p>
-          <div className="mt-2 flex min-w-0 gap-3">
-            <div
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ring-2 backdrop-blur-sm ${tierIconWrap(tier)}`}
-            >
-              <StatusGlyphByTier tier={tier} />
-            </div>
-            <div className="min-w-0">
-              <h3 className={`text-xl font-bold tracking-tight sm:text-2xl ${tierTextPrimary(tier)}`}>
-                {tierStyle.title}
-              </h3>
-              {result.statusLabel && (
-                <p className={`mt-0.5 text-xs font-semibold sm:text-sm ${tierTextMuted(tier)}`}>
-                  {result.statusLabel}
-                </p>
-              )}
-              <p className={`mt-1.5 max-w-none text-xs leading-snug sm:text-sm ${tierTextMuted(tier)}`}>
-                {tierStyle.blurb}
-              </p>
-            </div>
+            <StatusGlyphByTier tier={tier} className="h-5 w-5 shrink-0" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className={`text-[0.6rem] font-semibold uppercase tracking-[0.14em] ${statusEyebrow}`}>
+              Status
+            </p>
+            <h3 className={`mt-0.5 text-lg font-bold leading-tight tracking-tight ${tierTextPrimary(tier)}`}>
+              {tierStyle.title}
+            </h3>
+            {result.statusLabel ? (
+              <p className={`mt-0.5 text-xs font-medium ${tierTextMuted(tier)}`}>{result.statusLabel}</p>
+            ) : null}
+            <p className={`mt-1 text-xs leading-relaxed ${tierTextMuted(tier)}`}>{tierStyle.blurb}</p>
           </div>
         </div>
       </div>
 
       <div className="bg-white">
-        <div className="flex items-center gap-2 border-b border-zinc-200 px-4 py-3.5 sm:px-5 sm:py-4">
-          <svg className="h-4 w-4 shrink-0 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+        <div className="flex items-center gap-1.5 border-b border-brand-tint/70 bg-brand-surface/40 px-4 py-2 sm:px-5">
+          <svg
+            className="h-3.5 w-3.5 shrink-0 text-brand-soft"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+            aria-hidden
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"
+            />
           </svg>
-          <span className="text-sm font-semibold text-zinc-900">Device details</span>
+          <span className="text-xs font-semibold text-brand-ink">Device details</span>
         </div>
-        <div>
+        <div className="relative px-4 sm:px-5">
+          <div
+            className="pointer-events-none absolute top-2 bottom-2 left-[42%] w-px -translate-x-1/2 bg-brand-tint"
+            aria-hidden
+          />
           <DeviceDetailRow label="IMEI checked" value={formatImeiDisplay(result.imei)} />
           <DeviceDetailRow label="Device name" value={displayField(result.deviceName)} />
           <DeviceDetailRow label="Brand" value={displayField(result.brand)} />
@@ -776,95 +768,406 @@ function LookupResultCard({
   );
 }
 
-/** Three columns: stepped heights, light cyan palette. */
-const HERO_STAT_SLABS = [
+function useOnceInView<T extends HTMLElement = HTMLElement>(threshold = 0.35) {
+  const ref = useRef(null) as React.MutableRefObject<T | null>;
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold, rootMargin: "0px 0px -8% 0px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [threshold]);
+
+  return { ref, inView };
+}
+
+type HeroStatDef =
+  | { kind: "count"; target: number; suffix: string; label: string }
+  | { kind: "text"; display: string; label: string };
+
+const HERO_STATS: readonly HeroStatDef[] = [
+  { kind: "count", target: 50_000, suffix: "+", label: "Registered devices" },
+  { kind: "count", target: 1_700, suffix: "+", label: "Reported stolen" },
+  { kind: "text", display: "FREE", label: "Individual checks" },
+];
+
+function useCountUp(target: number, active: boolean, durationMs = 1400) {
+  const [value, setValue] = useState(0);
+
+  useEffect(() => {
+    if (!active) return;
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reducedMotion) {
+      setValue(target);
+      return;
+    }
+
+    const start = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      const progress = Math.min((now - start) / durationMs, 1);
+      const eased = 1 - (1 - progress) ** 3;
+      setValue(Math.round(target * eased));
+      if (progress < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [active, target, durationMs]);
+
+  return value;
+}
+
+function useHeroStatCounts(inView: boolean) {
+  const registered = useCountUp(50_000, inView);
+  const stolen = useCountUp(1_700, inView);
+  return [registered, stolen] as const;
+}
+
+function heroStatKey(stat: HeroStatDef) {
+  return stat.label;
+}
+
+function HeroStatItem({ stat, count }: { stat: HeroStatDef; count?: number }) {
+  const valueClass =
+    "text-[clamp(1.35rem,4vw,2.75rem)] font-bold tabular-nums leading-none tracking-tight text-brand-navy";
+  const suffixClass = "text-[clamp(1rem,3vw,2rem)]";
+  const labelClass =
+    "mt-2 text-[0.65rem] font-semibold uppercase tracking-wider text-brand-muted sm:text-xs";
+
+  return (
+    <div className="flex shrink-0 flex-col items-center justify-center px-2 py-0 text-center sm:px-3">
+      {stat.kind === "count" ? (
+        <p className={valueClass}>
+          {(count ?? 0).toLocaleString("en-US")}
+          <span className={suffixClass}>{stat.suffix}</span>
+        </p>
+      ) : (
+        <p className={valueClass}>{stat.display}</p>
+      )}
+      <p className={labelClass}>{stat.label}</p>
+    </div>
+  );
+}
+
+function heroStatsWithCounts(counts: readonly [number, number]) {
+  let countIndex = 0;
+  return HERO_STATS.map((stat) => {
+    if (stat.kind === "count") {
+      const entry = { stat, count: counts[countIndex] ?? 0 };
+      countIndex += 1;
+      return entry;
+    }
+    return { stat, count: undefined };
+  });
+}
+
+const HERO_STATS_CONTEXT =
+  "Verify before you buy—backed by local and global registries. Individual IMEI and serial lookups stay free for everyone.";
+
+function HeroStatsBar({ inView }: { inView: boolean }) {
+  const counts = useHeroStatCounts(inView);
+  const stats = useMemo(() => heroStatsWithCounts(counts), [counts]);
+  const numericStats = stats.filter((entry) => entry.stat.kind === "count");
+  const freeStat = stats.find((entry) => entry.stat.kind === "text");
+
+  return (
+    <div aria-label="Registry statistics">
+      <div className="mx-auto max-w-7xl">
+        <div className="flex flex-col gap-4 md:flex-row md:flex-nowrap md:items-center md:justify-between md:gap-x-12 lg:gap-x-16 xl:gap-x-24">
+          <div className="grid grid-cols-3 divide-x divide-brand-tint md:contents">
+            {numericStats.map(({ stat, count }) => (
+              <HeroStatItem key={heroStatKey(stat)} stat={stat} count={count} />
+            ))}
+            {freeStat ? (
+              <HeroStatItem stat={freeStat.stat} count={freeStat.count} />
+            ) : null}
+          </div>
+          <p
+            className={`w-full text-pretty text-center text-xs leading-relaxed sm:text-sm md:max-w-sm md:shrink-0 md:text-left lg:max-w-md ${brandBody}`}
+          >
+            {HERO_STATS_CONTEXT}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const EXPLAINER_CARDS = [
   {
-    value: "50",
-    caption: "registered devices",
-    slabHeight: "h-[9.5rem] sm:h-[11.5rem]",
-    valueSize: "text-[clamp(2.25rem,7vw,3.25rem)]",
-    bg: "bg-gradient-to-b from-white to-cyan-50",
-    text: "text-blue-950",
-    muted: "text-blue-950/60",
+    tier: "clean" as const,
+    title: "Ready to buy",
+    description: "No reported registry issues found for this device.",
+    cardLayout: "content-first" as const,
   },
   {
-    value: "24",
-    caption: "stolen reported",
-    slabHeight: "h-[14rem] sm:h-[17rem]",
-    valueSize: "text-[clamp(2.5rem,8vw,3.75rem)]",
-    bg: "bg-gradient-to-b from-cyan-50 to-cyan-100",
-    text: "text-blue-950",
-    muted: "text-blue-950/65",
+    tier: "stolen" as const,
+    title: "Do not proceed",
+    description: "The device may be flagged as stolen or blacklisted.",
+    cardLayout: "visual-first" as const,
   },
   {
-    value: "26",
-    caption: "buyer checks",
-    slabHeight: "h-[19rem] sm:h-[23rem]",
-    valueSize: "text-[clamp(2.75rem,9vw,4.25rem)]",
-    bg: "bg-gradient-to-b from-cyan-100 to-cyan-200",
-    text: "text-blue-950",
-    muted: "text-blue-950/65",
+    tier: "finance" as const,
+    title: "Verify ownership",
+    description: "The device may still be under a payment agreement.",
+    cardLayout: "content-first" as const,
+  },
+  {
+    tier: "unknown" as const,
+    title: "Do not buy",
+    description: "Not registered in AlloCheck—may not be genuine or original.",
+    cardLayout: "visual-first" as const,
+    explainerTheme: EXPLAINER_DO_NOT_BUY_THEME,
+    iconLineClass: EXPLAINER_DO_NOT_BUY_ICON_LINE,
   },
 ] as const;
 
-function statSlabOuterRound(index: number): string {
-  if (index === 0) return "rounded-tl-2xl rounded-bl-2xl sm:rounded-tl-3xl sm:rounded-bl-3xl";
-  if (index === 1) return "";
-  return "rounded-tr-2xl rounded-br-2xl sm:rounded-tr-3xl sm:rounded-br-3xl";
-}
+function HomeTrustSection({ onCheckNow }: { onCheckNow: () => void }) {
+  const { ref, inView } = useOnceInView<HTMLElement>(0.22);
 
-function HeroStatsBar() {
   return (
-    <section
-      className="bg-gradient-to-b from-zinc-50 to-white px-4 pt-8 pb-6 sm:px-6 sm:pt-10 sm:pb-8"
-      aria-label="Platform statistics"
-    >
-      <div className="mx-auto max-w-5xl">
-        <p className="mb-4 text-center text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-cyan-700/80">
-          AlloCheck registry
-        </p>
-        <div className="grid grid-cols-3 gap-0 overflow-hidden rounded-2xl shadow-sm shadow-cyan-950/5 sm:rounded-3xl" role="list">
-          {HERO_STAT_SLABS.map((stat, index) => (
-            <article key={stat.caption} role="listitem" className="flex min-w-0 flex-col">
-              <div
-                className={`relative flex w-full flex-col overflow-hidden ${stat.slabHeight} ${stat.bg} ${statSlabOuterRound(index)}`}
-              >
-                <div className={`flex flex-1 flex-col px-3 pt-5 sm:px-5 sm:pt-7 ${stat.text}`}>
-                  <div className="flex items-start justify-center">
-                    <span
-                      className={`${stat.valueSize} font-bold lowercase leading-none tracking-tight`}
-                    >
-                      {stat.value}
-                    </span>
-                    <span className={`ml-1 mt-1 text-sm font-light lowercase sm:text-base ${stat.muted}`}>
-                      %
-                    </span>
-                  </div>
-                </div>
-
-                <div
-                  className={`px-3 pb-4 pt-2 text-center text-[0.65rem] font-medium lowercase leading-tight sm:px-5 sm:pb-5 sm:text-xs ${stat.muted}`}
-                >
-                  {stat.caption}
-                </div>
-              </div>
-            </article>
+    <section ref={ref} id="trust" className={`scroll-mt-24 bg-white ${homeSectionX} ${homeSectionY}`}>
+      <div className="mx-auto max-w-7xl">
+        <HeroStatsBar inView={inView} />
+        <div className="mt-6 lg:mt-8">
+          <RotatingBrandHeadline inView={inView} />
+        </div>
+        <div className="mt-7 -mx-4 flex gap-5 overflow-x-auto px-4 pb-2 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] sm:-mx-6 sm:gap-6 sm:px-6 lg:mx-0 lg:mt-8 lg:grid lg:grid-cols-4 lg:items-stretch lg:gap-3 lg:overflow-visible lg:pb-0 lg:snap-none xl:gap-4 [&::-webkit-scrollbar]:hidden">
+          {EXPLAINER_CARDS.map((item) => (
+            <div
+              key={item.title}
+              className="w-[min(71.28vw,19.44rem)] shrink-0 snap-center lg:flex lg:w-full lg:min-w-0 lg:max-w-none"
+            >
+              <StatusExplainerCard
+                tier={item.tier}
+                title={item.title}
+                description={item.description}
+                cardLayout={item.cardLayout}
+                theme={"explainerTheme" in item ? item.explainerTheme : undefined}
+                iconLineClass={"iconLineClass" in item ? item.iconLineClass : undefined}
+              />
+            </div>
           ))}
+        </div>
+        <div className="mt-8 flex justify-center">
+          <button type="button" onClick={onCheckNow} className={btnCheckNow}>
+            Check Now
+            <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
+          </button>
         </div>
       </div>
     </section>
   );
 }
 
+function AlloCertifiedSection({ shopUrl }: { shopUrl: string }) {
+  const features = [
+    "Warranty included on every certified device",
+    "Built-in AlloCheck verification before you buy",
+    "Genuine phones from the Allo retail network",
+  ] as const;
+
+  return (
+    <section className={`${homeSectionX} ${homeSectionY}`}>
+      <div className="mx-auto max-w-6xl">
+        <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
+          <div className="order-2 lg:order-1">
+            <p className={brandEyebrow}>Allo Certified</p>
+            <h2 className={`mt-3 text-balance text-2xl sm:text-3xl lg:text-4xl ${brandHeading}`}>
+              Instead of Worrying, Buy Certified Hardware
+            </h2>
+            <p className={`mt-4 text-pretty text-sm leading-relaxed sm:text-base ${brandBody}`}>
+              Every device passes verification in the AlloCheck registry—backed by warranty and the Allo
+              network.
+            </p>
+            <ul className="mt-8 space-y-4">
+              {features.map((item) => (
+                <li key={item} className="flex gap-3 text-sm text-brand-ink">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand">
+                    <CheckIcon className="h-3.5 w-3.5" />
+                  </span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+            <a
+              href={shopUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${btnPartnerCta} mt-8`}
+            >
+              Buy Certified Phones
+              <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
+            </a>
+          </div>
+          <div className="relative order-1 min-h-[16rem] overflow-hidden rounded-2xl shadow-md sm:min-h-[22rem] lg:order-2 lg:min-h-[26rem]">
+            <img
+              src={alloCertifiedImage.src}
+              alt={alloCertifiedImage.alt}
+              className="absolute inset-0 h-full w-full object-cover"
+              loading="lazy"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-brand-navy/25 to-transparent" />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AlloBusinessSection() {
+  const features = [
+    "API and dashboard to register and update device status",
+    "Certified inventory and partner visibility",
+    "Dedicated flows for vendors and enterprise partners",
+  ] as const;
+
+  return (
+    <section id="partners" className={`scroll-mt-24 ${homeSectionX} ${homeSectionY}`}>
+      <div className="mx-auto max-w-6xl">
+        <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
+          <div className="relative min-h-[16rem] overflow-hidden rounded-2xl shadow-md sm:min-h-[22rem] lg:min-h-[26rem]">
+            <img
+              src={partnersBannerSrc}
+              alt="Allo business partners"
+              className="absolute inset-0 h-full w-full object-cover"
+              loading="lazy"
+            />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-brand-navy/30 to-transparent" />
+            <BusinessGrowthChartOverlay />
+          </div>
+          <div>
+            <p className={brandEyebrow}>For business</p>
+            <h2 className={`mt-3 text-balance text-2xl sm:text-3xl lg:text-4xl ${brandHeading}`}>
+              Grow Your Business with Allo
+            </h2>
+            <p className={`mt-4 text-pretty text-sm leading-relaxed sm:text-base ${brandBody}`}>
+              Check, register, and certify devices—enterprise-grade tools that help partners reduce risk and
+              grow sales.
+            </p>
+            <ul className="mt-8 space-y-4">
+              {features.map((item) => (
+                <li key={item} className="flex gap-3 text-sm text-brand-ink">
+                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand">
+                    <CheckIcon className="h-3.5 w-3.5" />
+                  </span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+            <a href="mailto:partners@allo.example" className={`${btnPartnerCta} mt-8`}>
+              Become a Partner
+              <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const ROTATING_SECTION_HEADLINES = [
+  {
+    id: "fraud",
+    label: "Protect Yourself From Fraud",
+    className: `text-balance text-2xl tracking-tight sm:text-3xl lg:text-4xl ${brandHeading}`,
+    content: (
+      <>
+        Protect Yourself From <span className="font-bold text-red-600">FRAUD</span>
+      </>
+    ),
+  },
+  {
+    id: "allocheck",
+    label: "What AlloCheck tells you",
+    className:
+      "text-balance bg-gradient-to-r from-brand via-[#6b92fc] to-brand-navy bg-clip-text text-2xl font-bold tracking-tight text-transparent sm:text-3xl lg:text-4xl",
+    content: "What AlloCheck tells you",
+  },
+] as const;
+
+const ROTATING_HEADLINE_INTERVAL_MS = 3500;
+
+/** Viewport-triggered headlines that crossfade on a loop (respects reduced motion). */
+function RotatingBrandHeadline({
+  className = "",
+  inView: inViewProp,
+}: {
+  className?: string;
+  inView?: boolean;
+}) {
+  const { ref, inView: observedInView } = useOnceInView<HTMLDivElement>(0.3);
+  const inView = inViewProp ?? observedInView;
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReducedMotion(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    if (!inView) {
+      setActiveIndex(0);
+      return;
+    }
+    if (reducedMotion) return;
+
+    const id = window.setInterval(() => {
+      setActiveIndex((i) => (i + 1) % ROTATING_SECTION_HEADLINES.length);
+    }, ROTATING_HEADLINE_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [inView, reducedMotion]);
+
+  const liveHeadline = ROTATING_SECTION_HEADLINES[activeIndex]?.label ?? ROTATING_SECTION_HEADLINES[0].label;
+
+  return (
+    <div ref={inViewProp === undefined ? ref : undefined} className={`text-center ${className}`}>
+      <h2 className="relative mx-auto min-h-[2.75em] max-w-4xl sm:min-h-[3rem]">
+        {ROTATING_SECTION_HEADLINES.map((line, index) => {
+          const isActive = index === activeIndex;
+          return (
+            <span
+              key={line.id}
+              className={`absolute inset-x-0 top-0 block transition-all duration-700 ease-in-out motion-reduce:transition-none ${line.className} ${
+                isActive
+                  ? "translate-y-0 opacity-100"
+                  : "pointer-events-none translate-y-2 opacity-0"
+              }`}
+              aria-hidden={!isActive}
+            >
+              {line.content}
+            </span>
+          );
+        })}
+        <span className="sr-only">{liveHeadline}</span>
+      </h2>
+    </div>
+  );
+}
+
 function VerifiedFromAlloCta({ shopUrl }: { shopUrl: string }) {
   return (
-    <div className="rounded-xl border border-cyan-200/70 bg-gradient-to-br from-cyan-50 via-white to-blue-50 px-4 py-4 shadow-sm sm:px-5 sm:py-5">
-      <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-blue-600">Allo Certified</p>
-      <h3 className="mt-1 text-base font-bold text-zinc-900 sm:text-lg">Buy verified from Allo</h3>
-      <p className="mt-1.5 text-sm leading-relaxed text-zinc-600">
+    <div className="rounded-xl border border-brand-tint bg-gradient-to-br from-brand-mist via-white to-brand-tint px-4 py-3.5 shadow-sm sm:px-5 sm:py-4">
+      <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-brand">Allo Certified</p>
+      <h3 className="mt-1 text-sm font-bold text-brand-ink sm:text-base">Buy verified from Allo</h3>
+      <p className="mt-1 text-xs leading-relaxed text-brand-muted sm:text-sm">
         Every certified phone includes a built-in AlloCheck result—clean, verified, and warranty-backed.
       </p>
-      <a href={shopUrl} target="_blank" rel="noopener noreferrer" className={`${btnPartnerCtaRow} mt-4`}>
+      <a href={shopUrl} target="_blank" rel="noopener noreferrer" className={`${btnPartnerCtaRow} mt-3`}>
         Buy certified phones
       </a>
     </div>
@@ -889,7 +1192,7 @@ function ResultPageActions({
   shareUrl: string | null;
 }) {
   return (
-    <div className="mt-8 border-t border-zinc-200 pt-6">
+    <div className="border-t border-brand-tint pt-5">
       {shareError ? (
         <p className="mb-3 text-center text-sm font-medium text-rose-700">{shareError}</p>
       ) : null}
@@ -897,21 +1200,22 @@ function ResultPageActions({
         <p className="mb-3 text-center text-sm font-medium text-emerald-700">{shareNotice}</p>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
-        <button type="button" onClick={onCheckAnother} className={btnPartnerCtaRow}>
+      <div className="flex w-full flex-col gap-3">
+        <button type="button" onClick={onCheckAnother} className={btnCheckNowCard}>
           Check another phone
+          <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
         </button>
-        <button type="button" onClick={onShareResult} disabled={shareBusy} className={btnShareOutline}>
+        <button type="button" onClick={onShareResult} disabled={shareBusy} className={btnShareOutlineCard}>
           {shareBusy ? "Creating link…" : "Share result"}
         </button>
       </div>
 
       {shareUrl ? (
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-stretch">
-          <div className="min-w-0 flex-1 rounded-lg border border-cyan-200/60 bg-gradient-to-r from-cyan-200/55 via-cyan-100/45 to-blue-100/40 px-3 py-2.5 text-sm text-blue-950 backdrop-blur-sm">
+        <div className="mt-4 flex w-full flex-col gap-2">
+          <div className="w-full rounded-xl border border-brand-tint bg-brand-mist px-3 py-2.5 text-sm text-brand-navy">
             <span className="block truncate font-medium">{shareUrl}</span>
           </div>
-          <button type="button" onClick={onCopyLink} className={btnPartnerCtaRow}>
+          <button type="button" onClick={onCopyLink} className={btnPartnerCtaCard}>
             Copy link
           </button>
         </div>
@@ -920,22 +1224,41 @@ function ResultPageActions({
   );
 }
 
-function CheckTrustBadges({ className = "" }: { className?: string }) {
+function CheckTrustBadges({
+  className = "",
+  onDark = false,
+}: {
+  className?: string;
+  onDark?: boolean;
+}) {
+  const textClass = onDark ? "text-white/90" : "text-black";
+  const iconClass = onDark
+    ? "bg-white/15 text-brand-tint ring-1 ring-white/20"
+    : "bg-brand-tint text-brand";
+
+  const pillShell = onDark
+    ? "flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-2.5 shadow-sm backdrop-blur-sm sm:gap-2 sm:px-4 sm:py-3"
+    : heroTrustPill;
+
+  const labelClass = `text-[0.65rem] font-semibold leading-tight sm:text-xs ${textClass}`;
+
   return (
-    <div
-      className={`mx-auto flex w-full max-w-3xl flex-col items-stretch gap-2 sm:flex-row sm:justify-center sm:gap-8 ${className}`}
-    >
-      <div className="flex items-center justify-center gap-2 text-xs font-medium text-white sm:text-sm">
-        <span className="text-cyan-300" aria-hidden>
-          ✓
+    <div className={`flex w-full flex-row items-stretch gap-2 sm:gap-3 ${className}`}>
+      <div className={pillShell}>
+        <span
+          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full sm:h-5 sm:w-5 ${iconClass}`}
+        >
+          <CheckIcon className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
         </span>
-        <span>Real-time Verification</span>
+        <span className={`truncate ${labelClass}`}>Real-time Verification</span>
       </div>
-      <div className="flex items-center justify-center gap-2 text-xs font-medium text-white sm:text-sm">
-        <span className="text-cyan-300" aria-hidden>
-          ✓
+      <div className={pillShell}>
+        <span
+          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full sm:h-5 sm:w-5 ${iconClass}`}
+        >
+          <CheckIcon className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
         </span>
-        <span>Trusted Registry</span>
+        <span className={`truncate ${labelClass}`}>Trusted Global Registry</span>
       </div>
     </div>
   );
@@ -982,8 +1305,8 @@ function CheckPhoneModal({
         {loading ? (
           <CheckLookupLoadingCard message={loadingMessage} className="w-full" />
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-cyan-200/70 bg-white shadow-2xl shadow-cyan-500/15">
-            <div className="relative bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 px-5 py-4 pr-14 sm:px-6 sm:py-5 sm:pr-16">
+          <div className="overflow-hidden rounded-2xl border border-brand-tint bg-white shadow-2xl shadow-brand/15">
+            <div className={`relative ${brandModalHeader} px-5 py-4 pr-14 sm:px-6 sm:py-5 sm:pr-16`}>
               <div id="check-phone-modal-title">
                 <AlloLogo onBrand />
               </div>
@@ -1001,12 +1324,12 @@ function CheckPhoneModal({
             </div>
           <form onSubmit={onSubmit} className="space-y-3 p-5 sm:p-6">
             <label className="block">
-              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-blue-950/70">
+              <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-brand-muted">
                 IMEI or Serial Number
               </span>
               <div className="relative">
                 <svg
-                  className="pointer-events-none absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-zinc-950"
+                  className="pointer-events-none absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-brand-soft"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -1027,21 +1350,18 @@ function CheckPhoneModal({
                   placeholder="Enter phone IMEI or Serial Number"
                   value={serial}
                   onChange={(e) => onSerialChange(e.target.value)}
-                  className={`w-full rounded-full py-3 pr-4 pl-11 text-[0.95rem] shadow-sm outline-none transition placeholder:text-blue-950/75 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/35 sm:py-3.5 sm:text-base ${heroFieldShell}`}
+                  className={`${heroSearchInput} py-3.5 pr-4 pl-11 text-[0.95rem] sm:py-3.5`}
                 />
               </div>
             </label>
 
-            <button
-              type="submit"
-              className={`${btnPartnerCta} group w-full justify-center py-3 sm:py-3.5`}
-            >
+            <button type="submit" className={`${btnModalCheckNow} group`}>
               Check Now
-              <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
+              <ArrowRight className="h-6 w-6 transition group-hover:translate-x-0.5" />
             </button>
 
             {error ? (
-              <p className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800">
+              <p className="rounded-none border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800">
                 {error}
               </p>
             ) : null}
@@ -1061,21 +1381,21 @@ function AppHeader({
   onCheckPhone: () => void;
 }) {
   return (
-    <header className="sticky top-0 z-50 border-b border-zinc-200/70 bg-white/90 shadow-sm backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2 sm:px-6 sm:py-2.5">
+    <header className="sticky top-0 z-50 border-b border-brand-tint bg-white/95 backdrop-blur-md">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6 sm:py-4">
         <a
           href="#/"
           onClick={(e) => {
             e.preventDefault();
             onLogoClick();
           }}
-          className="min-w-0 shrink-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+          className="min-w-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-brand"
         >
           <AlloLogo />
         </a>
-        <button type="button" onClick={onCheckPhone} className={btnNavCheck}>
-          Check Phone
-          <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5 sm:h-[1.125rem] sm:w-[1.125rem]" />
+        <button type="button" onClick={onCheckPhone} className={btnHeaderCheckNow}>
+          Check Now
+          <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5 sm:h-6 sm:w-6" />
         </button>
       </div>
     </header>
@@ -1083,60 +1403,56 @@ function AppHeader({
 }
 
 const footerLinkClass =
-  "text-sm font-medium text-cyan-100/85 transition hover:text-cyan-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-400";
+  "text-sm text-brand-soft transition hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
+
+const footerTopographicBg =
+  "bg-[url('/footer-topographic.png')] bg-repeat-x bg-[length:auto_100%] bg-center";
 
 function AppFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className={`relative overflow-hidden ${alloBusinessImageGradient} text-white`}>
-      <div className="relative mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
-        <div className="flex flex-col gap-8 md:flex-row md:items-start md:justify-between">
-          <div className="max-w-md text-center md:text-left">
-            <AlloLogo onBrand />
-            <p className="mt-4 text-sm leading-relaxed text-cyan-100/80">
-              Verify devices before you buy. Real-time checks against trusted registries—built for buyers and
-              partners across Ethiopia.
-            </p>
-            <p className="mt-3 text-xs leading-relaxed text-cyan-100/60">
-              AlloCheck is a subsidiary of{" "}
-              <a
-                href={alloShopUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-semibold text-cyan-300 underline-offset-2 transition hover:text-white hover:underline"
-              >
-                Allo
-              </a>
-            </p>
-          </div>
-
-          <nav className="flex flex-col items-center md:items-end" aria-label="Footer legal and support">
-            <p className="mb-2 hidden text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-cyan-300/90 md:block">
-              Legal & support
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 md:flex-col md:items-end md:gap-1">
-              <a href="#/privacy" className={footerLinkClass}>
-                Privacy
-              </a>
-              <a href="#/terms" className={footerLinkClass}>
-                Terms
-              </a>
-              <a href="#/contact" className={footerLinkClass}>
-                Contact
-              </a>
-              <a href="#/api-docs" className={footerLinkClass}>
-                API docs
-                <span className="text-cyan-100/50"> (soon)</span>
-              </a>
-            </div>
-          </nav>
+    <footer className="relative overflow-hidden bg-brand-navy text-white">
+      <div className={`pointer-events-none absolute inset-0 ${footerTopographicBg}`} aria-hidden />
+      <div className="pointer-events-none absolute inset-0 bg-brand-navy/25" aria-hidden />
+      <div className="relative z-10 mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+        <div className="min-w-0">
+          <AlloLogo onBrand compact />
+          <p className="mt-2 text-xs text-brand-soft/90">
+            A subsidiary of{" "}
+            <a
+              href={alloShopUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-brand-tint hover:text-white hover:underline"
+            >
+              Allo
+            </a>
+          </p>
         </div>
-
-        <div className="mt-10 flex flex-col items-center justify-between gap-2 border-t border-white/10 pt-6 text-center sm:flex-row sm:text-left">
-          <p className="text-xs text-cyan-100/55">© {year} AlloCheck. All rights reserved.</p>
-          <p className="text-xs text-cyan-100/45">Device verification you can trust</p>
-        </div>
+        <nav
+          aria-label="Footer"
+          className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-white/10 pt-4 sm:gap-x-6"
+        >
+          <a href="#/about" className={footerLinkClass}>
+            About
+          </a>
+          <a href="#/privacy" className={footerLinkClass}>
+            Privacy
+          </a>
+          <a href="#/terms" className={footerLinkClass}>
+            Terms
+          </a>
+          <a href="#/api-docs" className={footerLinkClass}>
+            API docs
+          </a>
+          <a href="#/contact" className={footerLinkClass}>
+            Contact
+          </a>
+        </nav>
+        <p className="mt-4 text-center text-[0.65rem] text-white/75 sm:text-left sm:text-xs">
+          © {year} AlloCheck. All rights reserved.
+        </p>
       </div>
     </footer>
   );
@@ -1153,8 +1469,8 @@ function LegalPageLayout({
 }) {
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-      <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">{title}</h1>
-      <div className="mt-6 space-y-4 text-sm leading-relaxed text-zinc-600">{children}</div>
+      <h1 className={`text-2xl tracking-tight sm:text-3xl ${brandHeading}`}>{title}</h1>
+      <div className={`mt-6 space-y-4 text-sm leading-relaxed ${brandBody}`}>{children}</div>
       <button type="button" onClick={onHome} className={`${btnPartnerCtaRow} mt-10`}>
         Back to home
       </button>
@@ -1164,6 +1480,37 @@ function LegalPageLayout({
 
 function LegalPageContent({ route, onHome }: { route: LegalRouteKind; onHome: () => void }) {
   switch (route) {
+    case "about":
+      return (
+        <LegalPageLayout title="About AlloCheck" onHome={onHome}>
+          <p>
+            AlloCheck helps buyers and sellers verify mobile devices before a purchase. Enter an IMEI or
+            serial number to see registry status—including clean, flagged, or unknown devices—so you can
+            decide with confidence.
+          </p>
+          <p>
+            We combine local and global data sources (including the Ethiopian registry and Trustonic global
+            coverage) to surface theft, blacklist, and financing signals in one clear result.
+          </p>
+          <p>
+            AlloCheck is a subsidiary of{" "}
+            <a
+              href={alloShopUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-brand underline-offset-2 hover:underline"
+            >
+              Allo
+            </a>
+            . Certified phones sold through Allo include built-in verification and warranty support. For
+            questions or partnerships, visit our{" "}
+            <a href="#/contact" className="font-semibold text-brand underline-offset-2 hover:underline">
+              Contact
+            </a>{" "}
+            page.
+          </p>
+        </LegalPageLayout>
+      );
     case "privacy":
       return (
         <LegalPageLayout title="Privacy Policy" onHome={onHome}>
@@ -1209,7 +1556,7 @@ function LegalPageContent({ route, onHome }: { route: LegalRouteKind; onHome: ()
           <p>
             <a
               href="mailto:support@allo.example"
-              className="font-semibold text-blue-950 underline-offset-2 hover:underline"
+              className="font-semibold text-brand underline-offset-2 hover:underline"
             >
               support@allo.example
             </a>
@@ -1218,7 +1565,7 @@ function LegalPageContent({ route, onHome }: { route: LegalRouteKind; onHome: ()
           <p>
             <a
               href="mailto:partners@allo.example"
-              className="font-semibold text-blue-950 underline-offset-2 hover:underline"
+              className="font-semibold text-brand underline-offset-2 hover:underline"
             >
               partners@allo.example
             </a>
@@ -1229,7 +1576,7 @@ function LegalPageContent({ route, onHome }: { route: LegalRouteKind; onHome: ()
               href={alloShopUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-semibold text-blue-950 underline-offset-2 hover:underline"
+              className="font-semibold text-brand underline-offset-2 hover:underline"
             >
               Allo
             </a>{" "}
@@ -1240,7 +1587,7 @@ function LegalPageContent({ route, onHome }: { route: LegalRouteKind; onHome: ()
     case "api-docs":
       return (
         <LegalPageLayout title="API documentation" onHome={onHome}>
-          <p className="rounded-full border border-cyan-200/80 bg-gradient-to-r from-cyan-50 to-blue-50 px-4 py-3 text-center font-medium text-blue-950">
+          <p className="rounded-xl border border-brand-tint bg-brand-mist px-4 py-3 text-center font-medium text-brand-navy">
             Coming soon
           </p>
           <p>
@@ -1248,7 +1595,7 @@ function LegalPageContent({ route, onHome }: { route: LegalRouteKind; onHome: ()
             be published here. If you need early access, contact{" "}
             <a
               href="mailto:partners@allo.example"
-              className="font-semibold text-blue-950 underline-offset-2 hover:underline"
+              className="font-semibold text-brand underline-offset-2 hover:underline"
             >
               partners@allo.example
             </a>
@@ -1260,7 +1607,6 @@ function LegalPageContent({ route, onHome }: { route: LegalRouteKind; onHome: ()
 }
 
 export default function App() {
-  const [heroIndex, setHeroIndex] = useState(0);
   const [serial, setSerial] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
@@ -1284,13 +1630,6 @@ export default function App() {
   const [shareNotice, setShareNotice] = useState<string | null>(null);
   const [shareLinkError, setShareLinkError] = useState<string | null>(null);
   const [shareUrl, setShareUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    const t = setInterval(() => {
-      setHeroIndex((i) => (i + 1) % heroImages.length);
-    }, 3000);
-    return () => clearInterval(t);
-  }, []);
 
   useEffect(() => {
     if (!loading) return;
@@ -1471,7 +1810,6 @@ export default function App() {
     />
   );
 
-  const hero = heroImages[heroIndex];
   function goHomeFromShare() {
     goHome();
     setSharedResult(null);
@@ -1523,13 +1861,14 @@ export default function App() {
   }
 
   if (
+    appRoute.kind === "about" ||
     appRoute.kind === "privacy" ||
     appRoute.kind === "terms" ||
     appRoute.kind === "contact" ||
     appRoute.kind === "api-docs"
   ) {
     return (
-      <div className="min-h-screen bg-white text-zinc-900">
+      <div className={pageShell}>
         <AppHeader onLogoClick={goHome} onCheckPhone={handleCheckPhoneNav} />
         <LegalPageContent route={appRoute.kind} onHome={goHome} />
         <AppFooter />
@@ -1540,17 +1879,17 @@ export default function App() {
 
   if (appRoute.kind === "result") {
     return (
-      <div className="min-h-screen bg-white text-zinc-900">
+      <div className={pageShell}>
         <AppHeader onLogoClick={goHome} onCheckPhone={handleCheckPhoneNav} />
 
-        <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-          <h1 className="text-center text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl md:text-4xl">
+        <main className="mx-auto max-w-lg px-4 py-8 sm:px-6 sm:py-12">
+          <h1 className={`text-center text-xl tracking-tight sm:text-2xl ${brandHeading}`}>
             Verification result
           </h1>
 
           {!resultPayload ? (
-            <div className="mt-10 text-center">
-              <p className="rounded-lg border border-zinc-200 bg-white px-4 py-6 text-sm text-zinc-600">
+            <div className="mt-8 text-center">
+              <p className={`rounded-xl border border-brand-tint bg-white px-4 py-5 text-sm ${brandBody}`}>
                 No result to show. Run a new check from the home page.
               </p>
               <button type="button" onClick={openCheckModal} className={`${btnPrimary} mt-6`}>
@@ -1558,7 +1897,7 @@ export default function App() {
               </button>
             </div>
           ) : (
-            <div className="mt-8 w-full space-y-6">
+            <div className="mx-auto mt-6 w-full max-w-md space-y-5">
               <LookupResultCard result={resultPayload} className="mt-0" />
               <ResultPageActions
                 onCheckAnother={handleCheckAnother}
@@ -1585,23 +1924,23 @@ export default function App() {
     const sharedUnknown = Boolean(sharedResult && sharedTier === "unknown");
 
     return (
-      <div className="min-h-screen bg-zinc-50 text-zinc-900">
+      <div className={pageShell}>
         <AppHeader onLogoClick={goHomeFromShare} onCheckPhone={handleCheckPhoneNav} />
 
-        <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-14">
-          <h1 className="text-center text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl md:text-4xl">
+        <main className="mx-auto max-w-lg px-4 py-8 sm:px-6 sm:py-12">
+          <h1 className={`text-center text-xl tracking-tight sm:text-2xl ${brandHeading}`}>
             Shared verification result
           </h1>
 
           {shareLoadState === "loading" && (
             <div className="mt-12 flex flex-col items-center gap-4 text-zinc-600">
-              <div className="h-12 w-12 animate-spin rounded-full border-4 border-zinc-200 border-t-blue-600" />
+              <div className="h-12 w-12 animate-spin rounded-full border-4 border-brand-tint border-t-brand" />
               <p className="text-sm font-medium">Loading shared result…</p>
             </div>
           )}
 
           {shareLoadState === "error" && shareLoadError && (
-            <p className="mt-8 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800">
+            <p className="mt-8 rounded-none border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800">
               {shareLoadError}
             </p>
           )}
@@ -1613,7 +1952,7 @@ export default function App() {
                   This link expires on {new Date(sharedExpiresAt).toLocaleString()}.
                 </p>
               )}
-              <div className="mt-6 w-full space-y-6">
+              <div className="mx-auto mt-6 w-full max-w-md space-y-5">
                 <LookupResultCard result={sharedResult} className="mt-0" />
                 {sharedUnknown ? (
                   <div className="flex justify-center">
@@ -1653,233 +1992,90 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900">
+    <div className={pageShell}>
       <AppHeader onLogoClick={goHome} onCheckPhone={handleCheckPhoneNav} />
 
-      <section id="hero-search" className="w-full px-3 sm:px-5 md:px-6">
-        <div className="w-full">
-          <div className="relative w-full overflow-hidden rounded-2xl bg-zinc-200 sm:rounded-3xl">
-            <div className="relative aspect-[25/24] w-full min-h-[26.4rem] sm:aspect-[35/18] sm:min-h-[19.2rem] md:aspect-[175/54] md:min-h-[13.2rem] lg:min-h-[15.6rem]">
-              <img
-                key={heroIndex}
-                src={hero.src}
-                alt={hero.alt}
-                className="absolute inset-0 h-full w-full rounded-2xl object-cover transition-opacity duration-700 ease-out sm:rounded-3xl"
-                loading={heroIndex === 0 ? "eager" : "lazy"}
-              />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-zinc-950/45 via-zinc-900/10 to-transparent" />
-              <div className="absolute inset-x-3 bottom-4 z-10 sm:inset-x-6 sm:bottom-8">
-                {loading && !checkModalOpen ? (
-                  <CheckLookupLoadingCard
-                    message={loadingMessages[loadingMessageIndex]}
-                    className="mx-auto w-full max-w-md"
-                  />
-                ) : (
-                  <form
-                    onSubmit={(e) => void onHeroSubmit(e)}
-                    className="mx-auto flex w-full max-w-3xl flex-col items-center gap-2.5 sm:flex-row sm:items-end sm:gap-3"
-                  >
-                    <label className="block w-full">
-                      <span className="sr-only">Enter phone IMEI or Serial Number</span>
-                      <div className="relative">
-                        <svg
-                          className="pointer-events-none absolute left-4 top-1/2 z-10 h-5 w-5 -translate-y-1/2 text-zinc-950 sm:h-6 sm:w-6"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2.25}
-                          aria-hidden
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M21 21l-4.35-4.35m1.35-5.15a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"
-                          />
-                        </svg>
-                        <input
-                          ref={serialInputRef}
-                          type="text"
-                          name="serial"
-                          autoComplete="off"
-                          placeholder="Enter phone IMEI or Serial Number"
-                          value={serial}
-                          onChange={(e) => setSerial(e.target.value)}
-                          className={`w-full rounded-full py-3 pr-4 pl-11 text-[0.95rem] shadow-[0_10px_30px_-12px_rgba(0,0,0,0.25)] outline-none transition placeholder:text-blue-950/75 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/35 sm:py-3.5 sm:pr-5 sm:pl-12 sm:text-base ${heroFieldShell}`}
-                        />
-                      </div>
-                    </label>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className={`${btnPartnerCta} group w-full py-3 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:shrink-0 sm:py-3.5`}
-                    >
-                      {loading ? "Checking..." : "Check Now"}
-                      {!loading ? (
-                        <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
-                      ) : null}
-                    </button>
-                  </form>
-                )}
-                {!loading || checkModalOpen ? (
-                  <CheckTrustBadges className="mt-2.5 sm:mt-3" />
-                ) : null}
-                {error && !checkModalOpen ? (
-                  <p className="mx-auto mt-3 w-full max-w-3xl rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800 shadow-sm">
-                    {error}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <main className={`${homeMainStack} pb-6 sm:pb-8 lg:pb-10`}>
+      <section id="hero-search" className="relative w-full overflow-hidden">
+        <img
+          src={heroPhoneVisual.src}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover object-center lg:object-[65%_center]"
+          loading="eager"
+          aria-hidden
+        />
+        <div className="relative z-10 mx-auto flex min-h-[min(36rem,90vh)] max-w-6xl flex-col justify-end px-4 pt-16 pb-10 sm:min-h-[34rem] sm:px-6 sm:pb-12 lg:min-h-[38rem] lg:pb-14">
+          <div className="mx-auto w-full max-w-2xl text-center">
+            <h1 className="sr-only">Device verification lookup</h1>
 
-      <HeroStatsBar />
-
-      <section className="bg-white px-4 pb-12 pt-8 sm:px-6 sm:pb-16 sm:pt-10 lg:pb-20 lg:pt-12">
-        <div className="mx-auto max-w-7xl">
-          <div className="text-center">
-            <h2 className="text-balance bg-gradient-to-r from-cyan-600 via-blue-700 to-blue-950 bg-clip-text text-2xl font-extrabold tracking-tight text-transparent sm:text-4xl md:text-5xl">
-              What AlloCheck tells you
-            </h2>
-          </div>
-
-          <div className="mt-9 -mx-4 flex gap-5 overflow-x-auto px-4 pb-2 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] sm:-mx-6 sm:gap-6 sm:px-6 lg:mx-0 lg:grid lg:grid-cols-4 lg:items-stretch lg:gap-3 lg:overflow-visible lg:pb-0 lg:snap-none xl:gap-4 [&::-webkit-scrollbar]:hidden">
-            {(
-              [
-                {
-                  tier: "clean" as const,
-                  title: "Ready to buy",
-                  description: "No reported registry issues found for this device.",
-                  cardLayout: "content-first" as const,
-                },
-                {
-                  tier: "stolen" as const,
-                  title: "Do not proceed",
-                  description: "The device may be flagged as stolen or blacklisted.",
-                  cardLayout: "visual-first" as const,
-                },
-                {
-                  tier: "finance" as const,
-                  title: "Verify ownership",
-                  description: "The device may still be under a payment agreement.",
-                  cardLayout: "content-first" as const,
-                },
-                {
-                  tier: "unknown" as const,
-                  title: "Do not buy",
-                  description: "Not registered in AlloCheck—may not be genuine or original.",
-                  cardLayout: "visual-first" as const,
-                  explainerTheme: EXPLAINER_DO_NOT_BUY_THEME,
-                  iconGrad: EXPLAINER_DO_NOT_BUY_ICON_GRAD,
-                  iconTextClass: "text-white",
-                },
-              ] as const
-            ).map((item) => (
-              <div
-                key={item.title}
-                className="w-[min(71.28vw,19.44rem)] shrink-0 snap-center lg:flex lg:w-full lg:min-w-0 lg:max-w-none"
-              >
-                <StatusExplainerCard
-                  tier={item.tier}
-                  title={item.title}
-                  description={item.description}
-                  cardLayout={item.cardLayout}
-                  theme={"explainerTheme" in item ? item.explainerTheme : undefined}
-                  iconGrad={"iconGrad" in item ? item.iconGrad : undefined}
-                  iconTextClass={"iconTextClass" in item ? item.iconTextClass : undefined}
+            {loading && !checkModalOpen ? (
+              <div>
+                <CheckLookupLoadingCard
+                  message={loadingMessages[loadingMessageIndex]}
+                  className="w-full"
                 />
               </div>
-            ))}
-          </div>
+            ) : (
+              <form
+                onSubmit={(e) => void onHeroSubmit(e)}
+                className="mx-auto flex w-full flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-3"
+              >
+                <label className="relative w-full min-w-0 sm:flex-1">
+                  <span className="sr-only">Enter phone IMEI or Serial Number</span>
+                  <svg
+                    className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-brand-soft sm:left-4 sm:h-5 sm:w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    aria-hidden
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M21 21l-4.35-4.35m1.35-5.15a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"
+                    />
+                  </svg>
+                  <input
+                    ref={serialInputRef}
+                    type="text"
+                    name="serial"
+                    autoComplete="off"
+                    placeholder="Enter phone IMEI or Serial Number"
+                    value={serial}
+                    onChange={(e) => setSerial(e.target.value)}
+                    className={`${heroSearchInput} py-3.5 pl-10 sm:py-4 sm:pl-11`}
+                  />
+                </label>
+                <button type="submit" disabled={loading} className={btnHeroCheckNow}>
+                  {loading ? "Checking..." : "Check Now"}
+                  {!loading ? (
+                    <ArrowRight className="h-6 w-6 shrink-0 transition group-hover:translate-x-0.5" />
+                  ) : null}
+                </button>
+              </form>
+            )}
 
-          <div className="mt-10 flex justify-center">
-            <button type="button" onClick={openCheckModal} className={btnPartnerCta}>
-              Check Now
-              <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-white px-4 py-10 sm:px-6 sm:py-16 lg:py-24">
-        <div className="mx-auto max-w-6xl">
-          <div className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 md:gap-8 lg:gap-10">
-            <div className="order-2 flex flex-col justify-center rounded-2xl border border-zinc-200/80 bg-white px-6 py-8 text-center shadow-lg shadow-blue-950/5 sm:px-10 sm:py-12 md:order-1 md:text-left lg:px-12 lg:py-14">
-              <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-blue-600">Allo Certified</p>
-              <h2 className="mt-3 text-balance text-xl font-bold leading-tight text-zinc-900 sm:text-3xl lg:text-4xl">
-                Instead of Worrying, Buy from Allo Certified Phones with Warranty
-              </h2>
-              <p className="mt-4 text-pretty text-sm leading-relaxed text-zinc-600 sm:text-lg">
-                Get a device that has already passed verification—backed by warranty and the Allo network.
-              </p>
-              <div className="mt-6 flex justify-center md:mt-8 md:justify-start">
-                <a
-                  href={alloShopUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={btnAlloCertifiedShopRow}
-                >
-                  Buy original phones from Allo
-                  <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
-                </a>
+            {!loading || checkModalOpen ? (
+              <div className="mx-auto mt-6 w-full max-w-2xl">
+                <CheckTrustBadges />
               </div>
-            </div>
-
-            <SplitSectionImageCard mdOrder="md:order-2">
-              <img
-                src={alloCertifiedImage.src}
-                alt={alloCertifiedImage.alt}
-                className="absolute inset-0 z-0 h-full w-full object-cover"
-                loading="lazy"
-              />
-            </SplitSectionImageCard>
+            ) : null}
+            {error && !checkModalOpen ? (
+              <p className="mx-auto mt-4 max-w-2xl rounded-none border border-rose-200/80 bg-rose-50 px-4 py-3 text-center text-sm text-rose-900">
+                {error}
+              </p>
+            ) : null}
           </div>
         </div>
       </section>
 
-      <section id="partners" className="scroll-mt-20 bg-white px-4 py-10 sm:px-6 sm:py-16 lg:py-24">
-        <div className="mx-auto max-w-6xl">
-          <div className="grid grid-cols-1 items-stretch gap-6 md:grid-cols-2 md:gap-8 lg:gap-10">
-            <div className="order-2 flex flex-col justify-center rounded-2xl bg-blue-950 px-6 py-8 text-center shadow-lg shadow-blue-950/20 sm:px-10 sm:py-12 md:order-1 md:text-left lg:px-12 lg:py-14">
-              <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-cyan-300/90">
-                For business
-              </p>
-              <h2 className="mt-3 text-balance text-xl font-bold leading-tight text-white sm:text-3xl lg:text-4xl">
-                Grow Your Business with Allo
-              </h2>
-              <p className="mt-4 text-pretty text-sm leading-relaxed text-cyan-100/90 sm:text-lg">
-                Check, get your device registered & certified—reach buyers who value trust.
-              </p>
-              <ul className="mt-6 flex flex-col gap-3 text-left text-cyan-50/95 sm:mt-8">
-                <li className="flex gap-3">
-                  <span className="mt-0.5 shrink-0 text-cyan-400">✓</span>
-                  <span>API and dashboard to register and update device status</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-0.5 shrink-0 text-cyan-400">✓</span>
-                  <span>Certified inventory and partner visibility</span>
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-0.5 shrink-0 text-cyan-400">✓</span>
-                  <span>Dedicated flows for vendors and enterprise</span>
-                </li>
-              </ul>
-              <div className="mt-6 flex justify-center md:mt-8 md:justify-start">
-                <a href="mailto:partners@allo.example" className={btnPartnerCta}>
-                  Become partner
-                  <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
-                </a>
-              </div>
-            </div>
+      <HomeTrustSection onCheckNow={openCheckModal} />
 
-            <SplitSectionImageCard mdOrder="md:order-2">
-              <PartnerBannerImage src={partnersBannerSrc} />
-              <BusinessGrowthChartOverlay />
-            </SplitSectionImageCard>
-          </div>
-        </div>
-      </section>
+      <AlloCertifiedSection shopUrl={alloShopUrl} />
+
+      <AlloBusinessSection />
+      </main>
 
       <AppFooter />
 
