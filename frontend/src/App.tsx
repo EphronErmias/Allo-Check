@@ -19,8 +19,11 @@ type LookupResult = {
 const rawApiUrl = import.meta.env.VITE_API_URL?.trim() ?? "http://localhost:4000";
 const apiBase = rawApiUrl.replace(/\/api\/v1\/?$/i, "").replace(/\/$/, "");
 
+const defaultPartnersBannerSrc =
+  "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=2400&h=1200&fit=crop&q=85";
+
 const partnersBannerSrc =
-  import.meta.env.VITE_PARTNERS_BANNER_URL?.trim() || "/partners-banner.svg";
+  import.meta.env.VITE_PARTNERS_BANNER_URL?.trim() || defaultPartnersBannerSrc;
 
 /** Matches partners banner / business image panel gradient (`partners-banner.svg`). */
 const alloBusinessImageGradient =
@@ -35,10 +38,39 @@ const heroImages = [
     alt: "Smartphones on display",
   },
   {
-    src: "https://images.unsplash.com/photo-1616348436218-f43bb1235e01?w=2400&h=1200&fit=crop&q=85",
-    alt: "",
+    src: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=2400&h=1200&fit=crop&q=85",
+    alt: "Person checking a smartphone",
   },
-];
+] as const;
+
+const alloCertifiedImage = {
+  src: "https://images.unsplash.com/photo-1556656793-08538906a9f8?w=2400&h=1200&fit=crop&q=85",
+  alt: "Certified smartphones with warranty",
+} as const;
+
+const EXPLAINER_CARD_IMAGES = {
+  clean: {
+    src: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&h=640&fit=crop&q=80",
+    alt: "Clean device ready to buy",
+  },
+  stolen: {
+    src: "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&h=640&fit=crop&q=80",
+    alt: "Device flagged as stolen or blacklisted",
+  },
+  finance: {
+    src: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=800&h=640&fit=crop&q=80",
+    alt: "Device that may still be financed",
+  },
+  unknown: {
+    src: "https://images.unsplash.com/photo-1633265486064-086b219458ec?w=800&h=640&fit=crop&q=80",
+    alt: "Unverified device not in registry",
+  },
+};
+
+const EXPLAINER_DO_NOT_BUY_IMAGE = {
+  src: "https://images.unsplash.com/photo-1585060544812-6b45742d762f?w=800&h=640&fit=crop&q=80",
+  alt: "Unregistered device — do not buy",
+} as const;
 
 const btnPrimary =
   "inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:opacity-60";
@@ -99,6 +131,27 @@ function LookupLoadingPanel({ message }: { message: string }) {
         {message}
       </p>
       <p className="mt-1.5 text-xs text-zinc-500">Verifying across available records…</p>
+    </div>
+  );
+}
+
+/** Shared lookup loading: brand gradient header + logo (modal & hero). */
+function CheckLookupLoadingCard({
+  message,
+  className = "",
+}: {
+  message: string;
+  className?: string;
+}) {
+  return (
+    <div
+      className={`overflow-hidden rounded-2xl border border-cyan-200/70 bg-white shadow-2xl shadow-cyan-500/15 ${className}`.trim()}
+    >
+      <div className="relative bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 px-5 py-4 sm:px-6 sm:py-5">
+        <AlloLogo onBrand />
+        <p className="mt-1 text-sm font-medium text-white/90">Verify a device before you buy</p>
+      </div>
+      <LookupLoadingPanel message={message} />
     </div>
   );
 }
@@ -191,6 +244,7 @@ function PartnerBannerImage({ src }: { src: string }) {
       src={src}
       alt="Allo business partners"
       className="absolute inset-0 z-0 h-full w-full object-cover"
+      loading="lazy"
     />
   );
 }
@@ -421,33 +475,32 @@ function tierTagText(tier: StatusTier): string {
 const EXPLAINER_CARD_SHELL = "bg-white border border-zinc-200/70 shadow-sm";
 const EXPLAINER_CARD_BODY = "text-zinc-900";
 const EXPLAINER_CARD_MUTED = "text-zinc-500";
-const EXPLAINER_CARD_VISUAL = "bg-zinc-200/90";
 
 const EXPLAINER_CARD_THEME: Record<
   StatusTier,
   {
-    visual: string;
+    image: { src: string; alt: string };
     body: string;
     muted: string;
   }
 > = {
   clean: {
-    visual: EXPLAINER_CARD_VISUAL,
+    image: EXPLAINER_CARD_IMAGES.clean,
     body: EXPLAINER_CARD_BODY,
     muted: EXPLAINER_CARD_MUTED,
   },
   stolen: {
-    visual: EXPLAINER_CARD_VISUAL,
+    image: EXPLAINER_CARD_IMAGES.stolen,
     body: EXPLAINER_CARD_BODY,
     muted: EXPLAINER_CARD_MUTED,
   },
   finance: {
-    visual: EXPLAINER_CARD_VISUAL,
+    image: EXPLAINER_CARD_IMAGES.finance,
     body: EXPLAINER_CARD_BODY,
     muted: EXPLAINER_CARD_MUTED,
   },
   unknown: {
-    visual: EXPLAINER_CARD_VISUAL,
+    image: EXPLAINER_CARD_IMAGES.unknown,
     body: EXPLAINER_CARD_BODY,
     muted: EXPLAINER_CARD_MUTED,
   },
@@ -456,7 +509,7 @@ const EXPLAINER_CARD_THEME: Record<
 type ExplainerCardTheme = (typeof EXPLAINER_CARD_THEME)[StatusTier];
 
 const EXPLAINER_DO_NOT_BUY_THEME: ExplainerCardTheme = {
-  visual: EXPLAINER_CARD_VISUAL,
+  image: EXPLAINER_DO_NOT_BUY_IMAGE,
   body: EXPLAINER_CARD_BODY,
   muted: EXPLAINER_CARD_MUTED,
 };
@@ -464,10 +517,10 @@ const EXPLAINER_DO_NOT_BUY_THEME: ExplainerCardTheme = {
 const EXPLAINER_DO_NOT_BUY_ICON_GRAD = "from-violet-500 via-purple-600 to-violet-950";
 
 function ExplainerCardVisual({
-  visual,
+  image,
   mobileEdge = "default",
 }: {
-  visual: string;
+  image: { src: string; alt: string };
   mobileEdge?: "default" | "flush-bottom" | "flush-top";
 }) {
   const radiusClass =
@@ -477,7 +530,11 @@ function ExplainerCardVisual({
         ? "rounded-b-2xl rounded-t-none"
         : "rounded-t-2xl rounded-b-xl";
 
-  return <div className={`relative h-full w-full overflow-hidden ${radiusClass} ${visual}`} />;
+  return (
+    <div className={`relative h-full w-full overflow-hidden bg-zinc-200/90 ${radiusClass}`}>
+      <img src={image.src} alt={image.alt} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+    </div>
+  );
 }
 
 function StatusExplainerCard({
@@ -537,7 +594,7 @@ function StatusExplainerCard({
       }`}
     >
       <ExplainerCardVisual
-        visual={theme.visual}
+        image={theme.image}
         mobileEdge={visualFirst ? "flush-top" : "flush-bottom"}
       />
     </div>
@@ -921,28 +978,27 @@ function CheckPhoneModal({
         onClick={onClose}
         disabled={loading}
       />
-      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-cyan-200/70 bg-white shadow-2xl shadow-cyan-500/15">
-        <div className="relative bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 px-5 py-4 pr-14 sm:px-6 sm:py-5 sm:pr-16">
-          <div id="check-phone-modal-title">
-            <AlloLogo onBrand />
-          </div>
-          <p className="mt-1 text-sm font-medium text-white/90">Verify a device before you buy</p>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={loading}
-            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:cursor-not-allowed disabled:opacity-50 sm:right-4 sm:top-4"
-            aria-label="Close"
-          >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.25} aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
+      <div className="relative w-full max-w-md">
         {loading ? (
-          <LookupLoadingPanel message={loadingMessage} />
+          <CheckLookupLoadingCard message={loadingMessage} className="w-full" />
         ) : (
+          <div className="overflow-hidden rounded-2xl border border-cyan-200/70 bg-white shadow-2xl shadow-cyan-500/15">
+            <div className="relative bg-gradient-to-r from-cyan-400 via-cyan-500 to-blue-600 px-5 py-4 pr-14 sm:px-6 sm:py-5 sm:pr-16">
+              <div id="check-phone-modal-title">
+                <AlloLogo onBrand />
+              </div>
+              <p className="mt-1 text-sm font-medium text-white/90">Verify a device before you buy</p>
+              <button
+                type="button"
+                onClick={onClose}
+                className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:right-4 sm:top-4"
+                aria-label="Close"
+              >
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.25} aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
           <form onSubmit={onSubmit} className="space-y-3 p-5 sm:p-6">
             <label className="block">
               <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-blue-950/70">
@@ -990,6 +1046,7 @@ function CheckPhoneModal({
               </p>
             ) : null}
           </form>
+          </div>
         )}
       </div>
     </div>
@@ -1018,6 +1075,7 @@ function AppHeader({
         </a>
         <button type="button" onClick={onCheckPhone} className={btnNavCheck}>
           Check Phone
+          <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5 sm:h-[1.125rem] sm:w-[1.125rem]" />
         </button>
       </div>
     </header>
@@ -1607,13 +1665,15 @@ export default function App() {
                 src={hero.src}
                 alt={hero.alt}
                 className="absolute inset-0 h-full w-full rounded-2xl object-cover transition-opacity duration-700 ease-out sm:rounded-3xl"
+                loading={heroIndex === 0 ? "eager" : "lazy"}
               />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-zinc-950/45 via-zinc-900/10 to-transparent" />
               <div className="absolute inset-x-3 bottom-4 z-10 sm:inset-x-6 sm:bottom-8">
                 {loading && !checkModalOpen ? (
-                  <div className="mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-white/40 bg-white/95 shadow-xl shadow-zinc-950/20 backdrop-blur-md">
-                    <LookupLoadingPanel message={loadingMessages[loadingMessageIndex]} />
-                  </div>
+                  <CheckLookupLoadingCard
+                    message={loadingMessages[loadingMessageIndex]}
+                    className="mx-auto w-full max-w-md"
+                  />
                 ) : (
                   <form
                     onSubmit={(e) => void onHeroSubmit(e)}
@@ -1684,7 +1744,7 @@ export default function App() {
             </h2>
           </div>
 
-          <div className="mt-9 -mx-4 flex gap-5 overflow-x-auto px-4 pb-2 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] sm:-mx-6 sm:gap-6 sm:px-6 lg:mx-0 lg:grid lg:grid-cols-4 lg:items-stretch lg:gap-5 lg:overflow-visible lg:pb-0 lg:snap-none xl:gap-6 [&::-webkit-scrollbar]:hidden">
+          <div className="mt-9 -mx-4 flex gap-5 overflow-x-auto px-4 pb-2 snap-x snap-mandatory [-ms-overflow-style:none] [scrollbar-width:none] sm:-mx-6 sm:gap-6 sm:px-6 lg:mx-0 lg:grid lg:grid-cols-4 lg:items-stretch lg:gap-3 lg:overflow-visible lg:pb-0 lg:snap-none xl:gap-4 [&::-webkit-scrollbar]:hidden">
             {(
               [
                 {
@@ -1718,7 +1778,7 @@ export default function App() {
             ).map((item) => (
               <div
                 key={item.title}
-                className="w-[min(71.28vw,19.44rem)] shrink-0 snap-center lg:mx-auto lg:flex lg:w-[90%] lg:min-w-0 lg:max-w-[19.44rem]"
+                className="w-[min(71.28vw,19.44rem)] shrink-0 snap-center lg:flex lg:w-full lg:min-w-0 lg:max-w-none"
               >
                 <StatusExplainerCard
                   tier={item.tier}
@@ -1768,9 +1828,10 @@ export default function App() {
 
             <SplitSectionImageCard mdOrder="md:order-2">
               <img
-                src={heroImages[0].src}
-                alt="Allo Certified phones"
+                src={alloCertifiedImage.src}
+                alt={alloCertifiedImage.alt}
                 className="absolute inset-0 z-0 h-full w-full object-cover"
+                loading="lazy"
               />
             </SplitSectionImageCard>
           </div>
