@@ -165,34 +165,17 @@ function LookupLoadingPanel({ message }: { message: string }) {
 function CheckLookupLoadingCard({
   message,
   className = "",
-  bare = false,
 }: {
   message: string;
   className?: string;
-  /** No card/header background (modal). */
-  bare?: boolean;
 }) {
   return (
     <div
-      className={
-        bare
-          ? `overflow-hidden rounded-2xl ${className}`.trim()
-          : `overflow-hidden rounded-2xl border border-brand-tint/80 bg-white shadow-[var(--shadow-card-hover)] ring-1 ring-black/[0.04] ${className}`.trim()
-      }
+      className={`overflow-hidden rounded-2xl border border-brand-tint bg-white shadow-2xl shadow-brand/15 ${className}`.trim()}
     >
-      <div
-        className={
-          bare
-            ? "relative px-5 py-4 sm:px-6 sm:py-5"
-            : `relative ${brandModalHeader} px-5 py-4 sm:px-6 sm:py-5`
-        }
-      >
-        <AlloLogo onBrand={!bare} />
-        <p
-          className={`mt-1 text-sm font-medium ${bare ? "text-brand-muted" : "text-white/90"}`}
-        >
-          Verify a device before you buy
-        </p>
+      <div className={`relative ${brandModalHeader} px-5 py-4 sm:px-6 sm:py-5`}>
+        <AlloLogo onBrand />
+        <p className="mt-1 text-sm font-medium text-white/90">Verify a device before you buy</p>
       </div>
       <LookupLoadingPanel message={message} />
     </div>
@@ -1313,25 +1296,25 @@ function CheckPhoneModal({
     >
       <button
         type="button"
-        className="absolute inset-0 bg-brand-navy/55 backdrop-blur-md"
+        className="absolute inset-0 bg-zinc-950/55 backdrop-blur-sm"
         aria-label="Close dialog"
         onClick={onClose}
         disabled={loading}
       />
       <div className="relative w-full max-w-md">
         {loading ? (
-          <CheckLookupLoadingCard message={loadingMessage} className="w-full" bare />
+          <CheckLookupLoadingCard message={loadingMessage} className="w-full" />
         ) : (
-          <div className="overflow-hidden rounded-2xl">
-            <div className="relative px-5 py-4 pr-14 sm:px-6 sm:py-5 sm:pr-16">
+          <div className="overflow-hidden rounded-2xl border border-brand-tint bg-white shadow-2xl shadow-brand/15">
+            <div className={`relative ${brandModalHeader} px-5 py-4 pr-14 sm:px-6 sm:py-5 sm:pr-16`}>
               <div id="check-phone-modal-title">
-                <AlloLogo />
+                <AlloLogo onBrand />
               </div>
-              <p className="mt-1 text-sm font-medium text-brand-muted">Verify a device before you buy</p>
+              <p className="mt-1 text-sm font-medium text-white/90">Verify a device before you buy</p>
               <button
                 type="button"
                 onClick={onClose}
-                className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-brand-mist text-brand-navy transition hover:bg-brand-tint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:right-4 sm:top-4"
+                className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:right-4 sm:top-4"
                 aria-label="Close"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.25} aria-hidden>
@@ -1378,7 +1361,7 @@ function CheckPhoneModal({
             </button>
 
             {error ? (
-              <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800">
+              <p className="rounded-none border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800">
                 {error}
               </p>
             ) : null}
