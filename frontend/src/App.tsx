@@ -32,14 +32,18 @@ const alloShopUrl =
 const homeSectionX = "px-4 sm:px-6";
 const homeSectionY = "py-8 sm:py-10 lg:py-12";
 const homeMainStack = "flex flex-col";
-const pageShell =
-  "min-h-screen bg-gradient-to-b from-brand-mist via-white to-brand-mist font-sans text-brand-ink";
+const pageShell = "min-h-screen allo-page-bg font-sans text-brand-ink antialiased";
 
-const brandCard = "rounded-2xl border border-brand-tint/80 bg-white shadow-sm shadow-brand/5";
-const brandEyebrow = "text-xs font-semibold uppercase tracking-widest text-brand";
-const brandHeading = "font-bold text-brand-ink";
-const brandBody = "text-brand-muted";
-const brandModalHeader = "bg-gradient-to-r from-brand via-brand to-brand-navy";
+const brandCard =
+  "rounded-2xl border border-brand-tint/60 bg-white shadow-[var(--shadow-card)] ring-1 ring-black/[0.03] transition duration-300 ease-out motion-reduce:transition-none hover:-translate-y-0.5 hover:shadow-[var(--shadow-card-hover)] hover:ring-brand/10 motion-reduce:hover:translate-y-0";
+const brandEyebrow = "text-xs font-semibold uppercase tracking-[0.22em] text-brand";
+const brandHeading = "font-bold tracking-tight text-brand-ink";
+const brandBody = "text-brand-muted leading-relaxed";
+const brandModalHeader =
+  "bg-gradient-to-br from-brand via-[#4d76f5] to-brand-navy shadow-[inset_0_1px_0_rgba(255,255,255,0.14)]";
+
+const splitSectionImage =
+  "relative min-h-[16rem] overflow-hidden rounded-[1.75rem] shadow-[var(--shadow-hero-media)] ring-1 ring-brand-tint/70 sm:min-h-[22rem] lg:min-h-[26rem]";
 
 const heroPhoneVisual = {
   src: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=2400&h=1400&fit=crop&q=85",
@@ -99,7 +103,7 @@ const btnModalCheckNow = `${btnSolid} flex w-full items-center justify-center ga
 const btnPartnerCtaRow = `${btnSolid} ${btnActionRowLayout}`;
 
 const btnShareOutline =
-  "inline-flex items-center justify-center rounded-full border-2 border-brand-navy bg-white text-brand-navy transition hover:bg-brand-mist disabled:cursor-not-allowed disabled:opacity-60";
+  "inline-flex items-center justify-center rounded-full border-2 border-brand-navy/90 bg-white text-brand-navy shadow-sm transition duration-200 ease-out hover:-translate-y-px hover:border-brand-navy hover:bg-brand-mist hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0";
 
 /** Full width of result card (max-w-md column) — matched height for paired actions. */
 const btnActionCardFull =
@@ -111,9 +115,9 @@ const btnPartnerCtaCard = `${btnSolid} ${btnActionCardFull}`;
 const heroSearchInput =
   "w-full rounded-full border border-brand-tint bg-white py-3 pr-3 pl-10 text-sm text-brand-ink shadow-sm outline-none transition placeholder:text-brand-soft focus:border-brand focus:ring-2 focus:ring-brand/25 sm:text-base";
 
-/** Single trust badge — matches hero search pill styling. */
+/** Trust badge — solid white pill (hero + below). */
 const heroTrustPill =
-  "flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-brand-tint bg-white px-3 py-2.5 shadow-sm sm:gap-2 sm:px-4 sm:py-3";
+  "flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-white/90 bg-white px-3 py-2.5 shadow-[0_10px_32px_-12px_rgba(26,31,46,0.28)] ring-1 ring-black/[0.04] sm:gap-2 sm:px-4 sm:py-3";
 
 const loadingMessages = [
   "Searching...",
@@ -161,17 +165,34 @@ function LookupLoadingPanel({ message }: { message: string }) {
 function CheckLookupLoadingCard({
   message,
   className = "",
+  bare = false,
 }: {
   message: string;
   className?: string;
+  /** No card/header background (modal). */
+  bare?: boolean;
 }) {
   return (
     <div
-      className={`overflow-hidden rounded-2xl border border-brand-tint bg-white shadow-2xl shadow-brand/15 ${className}`.trim()}
+      className={
+        bare
+          ? `overflow-hidden rounded-2xl ${className}`.trim()
+          : `overflow-hidden rounded-2xl border border-brand-tint/80 bg-white shadow-[var(--shadow-card-hover)] ring-1 ring-black/[0.04] ${className}`.trim()
+      }
     >
-      <div className={`relative ${brandModalHeader} px-5 py-4 sm:px-6 sm:py-5`}>
-        <AlloLogo onBrand />
-        <p className="mt-1 text-sm font-medium text-white/90">Verify a device before you buy</p>
+      <div
+        className={
+          bare
+            ? "relative px-5 py-4 sm:px-6 sm:py-5"
+            : `relative ${brandModalHeader} px-5 py-4 sm:px-6 sm:py-5`
+        }
+      >
+        <AlloLogo onBrand={!bare} />
+        <p
+          className={`mt-1 text-sm font-medium ${bare ? "text-brand-muted" : "text-white/90"}`}
+        >
+          Verify a device before you buy
+        </p>
       </div>
       <LookupLoadingPanel message={message} />
     </div>
@@ -503,12 +524,16 @@ const EXPLAINER_DO_NOT_BUY_ICON_LINE = "border-violet-500/40 text-violet-600";
 
 function ExplainerCardVisual({ image }: { image: { src: string; alt: string } }) {
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-xl bg-zinc-200/90 sm:rounded-2xl">
+    <div className="relative h-full w-full overflow-hidden rounded-xl bg-brand-surface ring-1 ring-black/[0.04] sm:rounded-2xl">
       <img
         src={image.src}
         alt={image.alt}
-        className="absolute inset-0 h-full w-full rounded-xl object-cover sm:rounded-2xl"
+        className="absolute inset-0 h-full w-full scale-100 rounded-xl object-cover transition duration-500 ease-out group-hover:scale-[1.03] sm:rounded-2xl"
         loading="lazy"
+      />
+      <div
+        className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-t from-brand-navy/20 via-transparent to-transparent sm:rounded-2xl"
+        aria-hidden
       />
     </div>
   );
@@ -574,7 +599,7 @@ function StatusExplainerCard({
 
   return (
     <article
-      className={`relative flex h-[24rem] w-full flex-col overflow-hidden rounded-2xl sm:h-[29rem] lg:aspect-[3/4] lg:h-auto lg:max-h-[20rem] xl:max-h-[22rem] ${EXPLAINER_CARD_SHELL}`}
+      className={`group relative flex h-[24rem] w-full flex-col overflow-hidden rounded-2xl sm:h-[29rem] lg:aspect-[3/4] lg:h-auto lg:max-h-[20rem] xl:max-h-[22rem] ${EXPLAINER_CARD_SHELL}`}
     >
       <div className="relative z-10 flex min-h-0 flex-1 flex-col">
         {visualFirst ? (
@@ -703,7 +728,7 @@ function LookupResultCard({
 
   return (
     <div
-      className={`${className} mx-auto w-full max-w-md overflow-hidden rounded-xl border border-brand-tint/90 bg-white shadow-md shadow-brand-navy/[0.06]`}
+      className={`${className} mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-brand-tint/70 bg-white shadow-[var(--shadow-card)] ring-1 ring-black/[0.04]`}
       role="region"
       aria-label="Verification result"
     >
@@ -839,7 +864,7 @@ function heroStatKey(stat: HeroStatDef) {
 
 function HeroStatItem({ stat, count }: { stat: HeroStatDef; count?: number }) {
   const valueClass =
-    "text-[clamp(1.35rem,4vw,2.75rem)] font-bold tabular-nums leading-none tracking-tight text-brand-navy";
+    "bg-gradient-to-br from-brand-navy via-brand to-brand-navy bg-clip-text text-[clamp(1.35rem,4vw,2.75rem)] font-bold tabular-nums leading-none tracking-tight text-transparent";
   const suffixClass = "text-[clamp(1rem,3vw,2rem)]";
   const labelClass =
     "mt-2 text-[0.65rem] font-semibold uppercase tracking-wider text-brand-muted sm:text-xs";
@@ -884,7 +909,7 @@ function HeroStatsBar({ inView }: { inView: boolean }) {
     <div aria-label="Registry statistics">
       <div className="mx-auto max-w-7xl">
         <div className="flex flex-col gap-4 md:flex-row md:flex-nowrap md:items-center md:justify-between md:gap-x-12 lg:gap-x-16 xl:gap-x-24">
-          <div className="grid grid-cols-3 divide-x divide-brand-tint md:contents">
+          <div className="grid grid-cols-3 divide-x divide-brand-tint/80 md:contents">
             {numericStats.map(({ stat, count }) => (
               <HeroStatItem key={heroStatKey(stat)} stat={stat} count={count} />
             ))}
@@ -936,7 +961,11 @@ function HomeTrustSection({ onCheckNow }: { onCheckNow: () => void }) {
   const { ref, inView } = useOnceInView<HTMLElement>(0.22);
 
   return (
-    <section ref={ref} id="trust" className={`scroll-mt-24 bg-white ${homeSectionX} ${homeSectionY}`}>
+    <section
+      ref={ref}
+      id="trust"
+      className={`scroll-mt-24 bg-gradient-to-b from-white via-white to-brand-mist/50 ${homeSectionX} ${homeSectionY}`}
+    >
       <div className="mx-auto max-w-7xl">
         <HeroStatsBar inView={inView} />
         <div className="mt-6 lg:mt-8">
@@ -978,7 +1007,7 @@ function AlloCertifiedSection({ shopUrl }: { shopUrl: string }) {
   ] as const;
 
   return (
-    <section className={`${homeSectionX} ${homeSectionY}`}>
+    <section className={`bg-gradient-to-b from-brand-mist/60 via-brand-mist/25 to-white ${homeSectionX} ${homeSectionY}`}>
       <div className="mx-auto max-w-6xl">
         <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
           <div className="order-2 lg:order-1">
@@ -993,10 +1022,10 @@ function AlloCertifiedSection({ shopUrl }: { shopUrl: string }) {
             <ul className="mt-8 space-y-4">
               {features.map((item) => (
                 <li key={item} className="flex gap-3 text-sm text-brand-ink">
-                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-tint via-white to-brand-mist text-brand shadow-sm ring-1 ring-brand/15">
                     <CheckIcon className="h-3.5 w-3.5" />
                   </span>
-                  <span>{item}</span>
+                  <span className="pt-0.5">{item}</span>
                 </li>
               ))}
             </ul>
@@ -1010,14 +1039,14 @@ function AlloCertifiedSection({ shopUrl }: { shopUrl: string }) {
               <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
             </a>
           </div>
-          <div className="relative order-1 min-h-[16rem] overflow-hidden rounded-2xl shadow-md sm:min-h-[22rem] lg:order-2 lg:min-h-[26rem]">
+          <div className={`order-1 lg:order-2 ${splitSectionImage}`}>
             <img
               src={alloCertifiedImage.src}
               alt={alloCertifiedImage.alt}
-              className="absolute inset-0 h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover transition duration-700 ease-out motion-reduce:transition-none hover:scale-[1.03] motion-reduce:hover:scale-100"
               loading="lazy"
             />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-brand-navy/25 to-transparent" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-brand-navy/40 via-brand-navy/8 to-transparent" />
           </div>
         </div>
       </div>
@@ -1033,17 +1062,17 @@ function AlloBusinessSection() {
   ] as const;
 
   return (
-    <section id="partners" className={`scroll-mt-24 ${homeSectionX} ${homeSectionY}`}>
+    <section id="partners" className={`scroll-mt-24 bg-white ${homeSectionX} ${homeSectionY}`}>
       <div className="mx-auto max-w-6xl">
         <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
-          <div className="relative min-h-[16rem] overflow-hidden rounded-2xl shadow-md sm:min-h-[22rem] lg:min-h-[26rem]">
+          <div className={splitSectionImage}>
             <img
               src={partnersBannerSrc}
               alt="Allo business partners"
-              className="absolute inset-0 h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover transition duration-700 ease-out motion-reduce:transition-none hover:scale-[1.03] motion-reduce:hover:scale-100"
               loading="lazy"
             />
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-brand-navy/30 to-transparent" />
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-brand-navy/45 via-brand-navy/8 to-transparent" />
             <BusinessGrowthChartOverlay />
           </div>
           <div>
@@ -1058,10 +1087,10 @@ function AlloBusinessSection() {
             <ul className="mt-8 space-y-4">
               {features.map((item) => (
                 <li key={item} className="flex gap-3 text-sm text-brand-ink">
-                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-tint text-brand">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-tint via-white to-brand-mist text-brand shadow-sm ring-1 ring-brand/15">
                     <CheckIcon className="h-3.5 w-3.5" />
                   </span>
-                  <span>{item}</span>
+                  <span className="pt-0.5">{item}</span>
                 </li>
               ))}
             </ul>
@@ -1161,7 +1190,7 @@ function RotatingBrandHeadline({
 
 function VerifiedFromAlloCta({ shopUrl }: { shopUrl: string }) {
   return (
-    <div className="rounded-xl border border-brand-tint bg-gradient-to-br from-brand-mist via-white to-brand-tint px-4 py-3.5 shadow-sm sm:px-5 sm:py-4">
+    <div className={`px-4 py-3.5 sm:px-5 sm:py-4 ${brandCard}`}>
       <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-brand">Allo Certified</p>
       <h3 className="mt-1 text-sm font-bold text-brand-ink sm:text-base">Buy verified from Allo</h3>
       <p className="mt-1 text-xs leading-relaxed text-brand-muted sm:text-sm">
@@ -1212,7 +1241,7 @@ function ResultPageActions({
 
       {shareUrl ? (
         <div className="mt-4 flex w-full flex-col gap-2">
-          <div className="w-full rounded-xl border border-brand-tint bg-brand-mist px-3 py-2.5 text-sm text-brand-navy">
+          <div className="w-full rounded-xl border border-brand-tint/70 bg-brand-mist/80 px-3 py-2.5 text-sm text-brand-navy ring-1 ring-brand/5">
             <span className="block truncate font-medium">{shareUrl}</span>
           </div>
           <button type="button" onClick={onCopyLink} className={btnPartnerCtaCard}>
@@ -1224,27 +1253,15 @@ function ResultPageActions({
   );
 }
 
-function CheckTrustBadges({
-  className = "",
-  onDark = false,
-}: {
-  className?: string;
-  onDark?: boolean;
-}) {
-  const textClass = onDark ? "text-white/90" : "text-black";
-  const iconClass = onDark
-    ? "bg-white/15 text-brand-tint ring-1 ring-white/20"
-    : "bg-brand-tint text-brand";
-
-  const pillShell = onDark
-    ? "flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-white/25 bg-white/10 px-3 py-2.5 shadow-sm backdrop-blur-sm sm:gap-2 sm:px-4 sm:py-3"
-    : heroTrustPill;
-
-  const labelClass = `text-[0.65rem] font-semibold leading-tight sm:text-xs ${textClass}`;
+function CheckTrustBadges({ className = "" }: { className?: string }) {
+  const iconClass =
+    "bg-gradient-to-br from-brand-tint to-brand/25 text-brand shadow-sm ring-1 ring-brand/15";
+  const labelClass =
+    "text-[0.65rem] font-bold leading-tight text-brand-ink sm:text-xs";
 
   return (
     <div className={`flex w-full flex-row items-stretch gap-2 sm:gap-3 ${className}`}>
-      <div className={pillShell}>
+      <div className={heroTrustPill}>
         <span
           className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full sm:h-5 sm:w-5 ${iconClass}`}
         >
@@ -1252,7 +1269,7 @@ function CheckTrustBadges({
         </span>
         <span className={`truncate ${labelClass}`}>Real-time Verification</span>
       </div>
-      <div className={pillShell}>
+      <div className={heroTrustPill}>
         <span
           className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full sm:h-5 sm:w-5 ${iconClass}`}
         >
@@ -1296,25 +1313,25 @@ function CheckPhoneModal({
     >
       <button
         type="button"
-        className="absolute inset-0 bg-zinc-950/55 backdrop-blur-sm"
+        className="absolute inset-0 bg-brand-navy/55 backdrop-blur-md"
         aria-label="Close dialog"
         onClick={onClose}
         disabled={loading}
       />
       <div className="relative w-full max-w-md">
         {loading ? (
-          <CheckLookupLoadingCard message={loadingMessage} className="w-full" />
+          <CheckLookupLoadingCard message={loadingMessage} className="w-full" bare />
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-brand-tint bg-white shadow-2xl shadow-brand/15">
-            <div className={`relative ${brandModalHeader} px-5 py-4 pr-14 sm:px-6 sm:py-5 sm:pr-16`}>
+          <div className="overflow-hidden rounded-2xl">
+            <div className="relative px-5 py-4 pr-14 sm:px-6 sm:py-5 sm:pr-16">
               <div id="check-phone-modal-title">
-                <AlloLogo onBrand />
+                <AlloLogo />
               </div>
-              <p className="mt-1 text-sm font-medium text-white/90">Verify a device before you buy</p>
+              <p className="mt-1 text-sm font-medium text-brand-muted">Verify a device before you buy</p>
               <button
                 type="button"
                 onClick={onClose}
-                className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:right-4 sm:top-4"
+                className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-brand-mist text-brand-navy transition hover:bg-brand-tint focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:right-4 sm:top-4"
                 aria-label="Close"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.25} aria-hidden>
@@ -1361,7 +1378,7 @@ function CheckPhoneModal({
             </button>
 
             {error ? (
-              <p className="rounded-none border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800">
+              <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800">
                 {error}
               </p>
             ) : null}
@@ -1381,8 +1398,8 @@ function AppHeader({
   onCheckPhone: () => void;
 }) {
   return (
-    <header className="sticky top-0 z-50 border-b border-brand-tint bg-white/95 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6 sm:py-4">
+    <header className="sticky top-0 z-50 border-b border-brand-tint/60 bg-white/90 shadow-[0_1px_0_rgba(255,255,255,0.8)_inset,0_8px_24px_-12px_rgba(44,61,143,0.12)] backdrop-blur-lg backdrop-saturate-150">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 sm:py-3.5">
         <a
           href="#/"
           onClick={(e) => {
@@ -1412,10 +1429,11 @@ function AppFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="relative overflow-hidden bg-brand-navy text-white">
-      <div className={`pointer-events-none absolute inset-0 ${footerTopographicBg}`} aria-hidden />
-      <div className="pointer-events-none absolute inset-0 bg-brand-navy/25" aria-hidden />
-      <div className="relative z-10 mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+    <footer className="relative overflow-hidden border-t border-white/10 bg-gradient-to-b from-brand-navy via-[#243266] to-[#1a2558] text-white">
+      <div className={`pointer-events-none absolute inset-0 opacity-35 ${footerTopographicBg}`} aria-hidden />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,rgba(90,129,250,0.18),transparent_65%)]" aria-hidden />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#1a2558] via-transparent to-transparent" aria-hidden />
+      <div className="relative z-10 mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">
         <div className="min-w-0">
           <AlloLogo onBrand compact />
           <p className="mt-2 text-xs text-brand-soft/90">
@@ -1469,8 +1487,10 @@ function LegalPageLayout({
 }) {
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-      <h1 className={`text-2xl tracking-tight sm:text-3xl ${brandHeading}`}>{title}</h1>
-      <div className={`mt-6 space-y-4 text-sm leading-relaxed ${brandBody}`}>{children}</div>
+      <div className={`p-6 sm:p-8 ${brandCard} hover:translate-y-0 hover:shadow-[var(--shadow-card)]`}>
+        <h1 className={`text-2xl tracking-tight sm:text-3xl ${brandHeading}`}>{title}</h1>
+        <div className={`mt-6 space-y-4 text-sm ${brandBody}`}>{children}</div>
+      </div>
       <button type="button" onClick={onHome} className={`${btnPartnerCtaRow} mt-10`}>
         Back to home
       </button>
@@ -1587,7 +1607,7 @@ function LegalPageContent({ route, onHome }: { route: LegalRouteKind; onHome: ()
     case "api-docs":
       return (
         <LegalPageLayout title="API documentation" onHome={onHome}>
-          <p className="rounded-xl border border-brand-tint bg-brand-mist px-4 py-3 text-center font-medium text-brand-navy">
+          <p className="rounded-xl border border-brand-tint/70 bg-gradient-to-r from-brand-mist to-brand-tint px-4 py-3 text-center font-medium text-brand-navy shadow-sm">
             Coming soon
           </p>
           <p>
@@ -1882,14 +1902,16 @@ export default function App() {
       <div className={pageShell}>
         <AppHeader onLogoClick={goHome} onCheckPhone={handleCheckPhoneNav} />
 
-        <main className="mx-auto max-w-lg px-4 py-8 sm:px-6 sm:py-12">
+        <main className="mx-auto max-w-lg px-4 py-10 sm:px-6 sm:py-14 lg:py-16">
           <h1 className={`text-center text-xl tracking-tight sm:text-2xl ${brandHeading}`}>
             Verification result
           </h1>
 
           {!resultPayload ? (
             <div className="mt-8 text-center">
-              <p className={`rounded-xl border border-brand-tint bg-white px-4 py-5 text-sm ${brandBody}`}>
+              <p
+                className={`rounded-2xl border border-brand-tint/70 bg-white px-5 py-6 text-sm shadow-[var(--shadow-card)] ring-1 ring-black/[0.03] ${brandBody}`}
+              >
                 No result to show. Run a new check from the home page.
               </p>
               <button type="button" onClick={openCheckModal} className={`${btnPrimary} mt-6`}>
@@ -1927,20 +1949,23 @@ export default function App() {
       <div className={pageShell}>
         <AppHeader onLogoClick={goHomeFromShare} onCheckPhone={handleCheckPhoneNav} />
 
-        <main className="mx-auto max-w-lg px-4 py-8 sm:px-6 sm:py-12">
+        <main className="mx-auto max-w-lg px-4 py-10 sm:px-6 sm:py-14 lg:py-16">
           <h1 className={`text-center text-xl tracking-tight sm:text-2xl ${brandHeading}`}>
             Shared verification result
           </h1>
 
           {shareLoadState === "loading" && (
-            <div className="mt-12 flex flex-col items-center gap-4 text-zinc-600">
-              <div className="h-12 w-12 animate-spin rounded-full border-4 border-brand-tint border-t-brand" />
+            <div className="mt-12 flex flex-col items-center gap-4 text-brand-muted">
+              <div className="relative flex h-14 w-14 items-center justify-center">
+                <div className="absolute inset-0 rounded-full bg-brand/15 blur-md" aria-hidden />
+                <div className="relative h-12 w-12 animate-spin rounded-full border-[3px] border-brand-tint border-t-brand border-r-brand-navy" />
+              </div>
               <p className="text-sm font-medium">Loading shared result…</p>
             </div>
           )}
 
           {shareLoadState === "error" && shareLoadError && (
-            <p className="mt-8 rounded-none border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800">
+            <p className="mt-8 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-center text-sm text-rose-800 shadow-sm">
               {shareLoadError}
             </p>
           )}
@@ -1948,7 +1973,7 @@ export default function App() {
           {shareLoadState === "done" && sharedResult && (
             <>
               {sharedExpiresAt && (
-                <p className="mt-6 text-center text-xs text-zinc-500">
+                <p className="mt-6 text-center text-xs text-brand-muted">
                   This link expires on {new Date(sharedExpiresAt).toLocaleString()}.
                 </p>
               )}
@@ -2000,8 +2025,16 @@ export default function App() {
         <img
           src={heroPhoneVisual.src}
           alt=""
-          className="absolute inset-0 h-full w-full object-cover object-center lg:object-[65%_center]"
+          className="absolute inset-0 h-full w-full scale-105 object-cover object-center lg:object-[65%_center]"
           loading="eager"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 bg-gradient-to-t from-brand-navy/90 via-brand-navy/40 to-brand/10"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_55%_at_50%_100%,rgba(90,129,250,0.22),transparent_68%)]"
           aria-hidden
         />
         <div className="relative z-10 mx-auto flex min-h-[min(36rem,90vh)] max-w-6xl flex-col justify-end px-4 pt-16 pb-10 sm:min-h-[34rem] sm:px-6 sm:pb-12 lg:min-h-[38rem] lg:pb-14">
@@ -2062,7 +2095,7 @@ export default function App() {
               </div>
             ) : null}
             {error && !checkModalOpen ? (
-              <p className="mx-auto mt-4 max-w-2xl rounded-none border border-rose-200/80 bg-rose-50 px-4 py-3 text-center text-sm text-rose-900">
+              <p className="mx-auto mt-4 max-w-2xl rounded-xl border border-rose-200/90 bg-rose-50/95 px-4 py-3 text-center text-sm text-rose-900 shadow-sm backdrop-blur-sm">
                 {error}
               </p>
             ) : null}

@@ -7,27 +7,54 @@
   --color-brand-hover: #4a71e8;
   --color-brand-navy: #2c3d8f;
   --color-brand-navy-hover: #243266;
-  --color-brand-ink: #1f1f1f;
-  --color-brand-muted: #646b83;
-  --color-brand-soft: #a8bbcb;
-  --color-brand-surface: #f3f3f3;
-  --color-brand-tint: #e1e9ff;
-  --color-brand-mist: #f2f5ff;
+  --color-brand-ink: #1a1f2e;
+  --color-brand-muted: #5c6478;
+  --color-brand-soft: #94a3b8;
+  --color-brand-surface: #f4f6fb;
+  --color-brand-tint: #dce6ff;
+  --color-brand-mist: #eef2ff;
+
+  --shadow-card: 0 1px 2px rgb(44 61 143 / 0.04), 0 10px 36px -14px rgb(44 61 143 / 0.14);
+  --shadow-card-hover: 0 2px 4px rgb(44 61 143 / 0.06), 0 20px 48px -16px rgb(90 129 250 / 0.22);
+  --shadow-float: 0 4px 28px -8px rgb(44 61 143 / 0.16), 0 0 0 1px rgb(90 129 250 / 0.06);
+  --shadow-hero-media: 0 24px 56px -20px rgb(44 61 143 / 0.42);
+  --shadow-hero-input: 0 12px 40px -10px rgb(26 31 46 / 0.28);
 }
 
 @layer base {
   html {
     scroll-behavior: smooth;
+    text-rendering: optimizeLegibility;
   }
 
   body {
     font-family: var(--font-sans);
     color: var(--color-brand-ink);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--color-brand) 28%, transparent);
+    color: var(--color-brand-ink);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
   }
 }
 
 @layer components {
+  .allo-page-bg {
+    background-color: #fff;
+    background-image:
+      radial-gradient(ellipse 100% 55% at 50% -12%, color-mix(in srgb, var(--color-brand-tint) 50%, transparent), transparent 58%),
+      radial-gradient(ellipse 55% 40% at 100% 20%, color-mix(in srgb, var(--color-brand-mist) 70%, transparent), transparent 52%),
+      linear-gradient(180deg, var(--color-brand-mist) 0%, #fff 32%, #fff 100%);
+  }
+
   .allocheck-logo {
     aspect-ratio: 707 / 353;
     width: auto;
