@@ -30,6 +30,17 @@ Simple stack: **Node.js (Express) + Postgres** API and **Vite + React 19 + TypeS
 
    Default UI: `http://localhost:3000`. The dev server proxies `/api` to `http://localhost:4000`, so you do not need `VITE_API_URL` for local work unless the API runs elsewhere.
 
+## Production
+
+**Recommended:** deploy with the repo `Dockerfile`. It builds the Vite app into `backend/public` so the API and UI share one origin (`/api/v1/...` on the same host). No `VITE_API_URL` is required.
+
+**Split hosting** (static UI on Netlify/Vercel, API elsewhere):
+
+1. Build the frontend with `VITE_API_URL=https://your-api-host` (no trailing slash), **or**
+2. Serve a `config.json` with `{ "apiUrl": "https://your-api-host" }` and set `PUBLIC_API_URL` on the API if it serves `/config.json`.
+
+Ensure `CORS_ORIGIN` on the API includes your UI origin (or use `*`).
+
 ## Environment
 
 | Variable        | Where    | Purpose                          |
@@ -37,7 +48,8 @@ Simple stack: **Node.js (Express) + Postgres** API and **Vite + React 19 + TypeS
 | `PORT`         | backend  | HTTP port (default `4000`)       |
 | `DATABASE_URL` | backend  | Postgres connection string     |
 | `CORS_ORIGIN`  | backend  | `*` or comma-separated origins |
-| `VITE_API_URL` | frontend | API base URL                    |
+| `PUBLIC_API_URL` | backend | API URL exposed to the UI via `/config.json` when UI is on another host |
+| `VITE_API_URL` | frontend | API base URL at **build** time (split hosting) |
 | `VITE_PARTNERS_BANNER_URL` | frontend | Optional partners hero image URL |
 
 ## Demo data

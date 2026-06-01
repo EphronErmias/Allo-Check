@@ -3,7 +3,7 @@ function stripApiSuffix(url: string): string {
 }
 
 function toAbsoluteUrl(url: string): string {
-  return url.startsWith("http") ? url : `http://${url}`;
+  return url.startsWith("http") ? url : `https://${url}`;
 }
 
 function isLocalhostUrl(url: string): boolean {
@@ -20,12 +20,35 @@ function isLocalhostPage(): boolean {
   return host === "localhost" || host === "127.0.0.1";
 }
 
+/** Set from /config.json at startup (production). */
+let runtimeApiUrl: string | undefined;
+
+/**
+ * Load optional runtime API URL (served by backend or static host).
+ * Call once before rendering the app.
+ */
+export async function initApiConfig(): Promise<void> {
+  try {
+    const res = await fetch("/config.json", { cache: "no-store" });
+    if (!res.ok) return;
+    const data = (await res.json()) as { apiUrl?: string };
+    const url = data.apiUrl?.trim();
+    if (url) runtimeApiUrl = stripApiSuffix(url);
+  } catch {
+    /* static hosts without config.json fall back to build-time env */
+  }
+}
+
+function configuredApiUrl(): string | undefined {
+  return runtimeApiUrl ?? import.meta.env.VITE_API_URL?.trim() ?? undefined;
+}
+
 /**
  * API origin for REST calls (no trailing slash).
- * In dev, defaults to same-origin so Vite can proxy /api to the backend (works on LAN IPs too).
+ * In dev, defaults to same-origin so Vite proxies /api to the backend.
  */
 export function resolveApiBase(): string {
-  const envUrl = import.meta.env.VITE_API_URL?.trim();
+  const envUrl = configuredApiUrl();
 
   if (import.meta.env.DEV) {
     if (!envUrl || isLocalhostUrl(envUrl)) {
@@ -38,7 +61,7 @@ export function resolveApiBase(): string {
     const base = stripApiSuffix(envUrl);
     if (!isLocalhostPage() && isLocalhostUrl(base)) {
       console.warn(
-        "VITE_API_URL points at localhost but the site is not served locally; using same origin instead.",
+        "API URL points at localhost but the site is not served locally; using same origin instead.",
       );
       return window.location.origin;
     }
@@ -48,18 +71,17 @@ export function resolveApiBase(): string {
   return window.location.origin;
 }
 
-export const apiBase = resolveApiBase();
-
 export function apiUrl(path: string): string {
+  const base = resolveApiBase();
   const normalized = path.startsWith("/") ? path : `/${path}`;
-  return apiBase ? `${apiBase}${normalized}` : normalized;
+  return base ? `${base}${normalized}` : normalized;
 }
 
 export function formatFetchError(err: unknown, context = "AlloCheck API"): string {
   if (err instanceof Error) {
     if (err.message === "Failed to fetch" || err.name === "TypeError") {
-      const target = apiBase || window.location.origin;
-      return `Cannot reach the ${context} (${target}). Start the backend (see ARCHITECTURE.md) or set VITE_API_URL to your API URL.`;
+      const target = resolveApiBase() || window.location.origin;
+      return `Cannot reach the ${context} (${target}). If the API runs on another host, set PUBLIC_API_URL on the server or VITE_API_URL when building the frontend.`;
     }
     return err.message;
   }

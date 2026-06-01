@@ -1,0 +1,26 @@
+# Render Blueprint — matches the live "Allo-Check" web service (srv-d7o2tb77f7vs7384rp20).
+# Set DATABASE_URL in the dashboard (Supabase pooler URL, port 6543).
+
+services:
+  - type: web
+    name: Allo-Check
+    runtime: docker
+    repo: https://github.com/EphronErmias/Allo-Check
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: NODE_ENV
+        value: production
+      - key: VITE_APP_ORIGIN
+        value: https://allo-check.onrender.com
+      # Leave unset when UI and API share this service (default).
+      # - key: PUBLIC_API_URL
+      #   value: https://your-api.onrender.com

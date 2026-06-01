@@ -1,5 +1,8 @@
 import "dotenv/config";
 import dns from "node:dns";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
@@ -13,6 +16,15 @@ import { sharesRouter } from "./routes/shares.js";
 const PORT = Number(process.env.PORT) || 4000;
 const DATABASE_URL = process.env.DATABASE_URL;
 const CORS_ORIGIN = process.env.CORS_ORIGIN ?? "*";
+/** Public API URL for split UI deploys (no trailing slash). Empty = same origin as this server. */
+const PUBLIC_API_URL = process.env.PUBLIC_API_URL?.trim().replace(/\/$/, "") ?? "";
+
+const backendDir = path.dirname(fileURLToPath(import.meta.url));
+const publicDir = path.join(backendDir, "../public");
+
+function hasFrontendBuild(): boolean {
+  return fs.existsSync(path.join(publicDir, "index.html"));
+}
 
 // Supabase hosts may resolve dual-stack records; prefer IPv4 first to avoid
 // ENETUNREACH in environments without outbound IPv6 routing.
@@ -43,6 +55,20 @@ async function main(): Promise<void> {
   api.use("/shares", sharesRouter(db));
   app.use("/api/v1", api);
 
+  app.get("/config.json", (_req, res) => {
+    res.json({ apiUrl: PUBLIC_API_URL });
+  });
+
+  if (hasFrontendBuild()) {
+    app.use(express.static(publicDir, { index: false }));
+    app.get("*", (req, res, next) => {
+      if (req.method !== "GET" && req.method !== "HEAD") return next();
+      if (req.path.startsWith("/api/")) return next();
+      res.sendFile(path.join(publicDir, "index.html"));
+    });
+    console.log(`Serving frontend from ${publicDir}`);
+  }
+
   app.use(
     (
       err: Error & { statusCode?: number },
@@ -65,7 +91,10 @@ async function main(): Promise<void> {
   );
 
   app.listen(PORT, () => {
-    console.log(`AlloCheck API listening on http://localhost:${PORT}`);
+    console.log(`AlloCheck listening on http://localhost:${PORT}`);
+    if (PUBLIC_API_URL) {
+      console.log(`PUBLIC_API_URL for clients: ${PUBLIC_API_URL}`);
+    }
   });
 }
 
