@@ -16,7 +16,11 @@ type LookupResult = {
   message?: string;
 };
 
-const rawApiUrl = import.meta.env.VITE_API_URL?.trim() ?? "http://localhost:4000";
+const defaultApiUrl =
+  import.meta.env.DEV || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? "http://localhost:4000"
+    : window.location.origin;
+const rawApiUrl = import.meta.env.VITE_API_URL?.trim() || defaultApiUrl;
 const apiBase = rawApiUrl.replace(/\/api\/v1\/?$/i, "").replace(/\/$/, "");
 
 const defaultPartnersBannerSrc =
