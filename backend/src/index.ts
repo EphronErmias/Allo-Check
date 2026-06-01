@@ -41,6 +41,8 @@ async function main(): Promise<void> {
   const lookup = new LookupService(db);
 
   const app = express();
+  // Required behind Render/nginx so express-rate-limit reads X-Forwarded-For correctly.
+  app.set("trust proxy", 1);
   app.use(express.json({ limit: "50kb" }));
   app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
   app.use(
