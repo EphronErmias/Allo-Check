@@ -28,7 +28,7 @@ Simple stack: **Node.js (Express) + Postgres** API and **Vite + React 19 + TypeS
    npm run dev
    ```
 
-   Default UI: `http://localhost:3000`. Point `VITE_API_URL` at the API (or use the default `http://localhost:4000`).
+   Default UI: `http://localhost:3000`. The dev server proxies `/api` to `http://localhost:4000`, so you do not need `VITE_API_URL` for local work unless the API runs elsewhere.
 
 ## Environment
 

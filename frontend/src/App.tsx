@@ -1,4 +1,5 @@
 import React, { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { apiUrl, formatFetchError, readApiError } from "./api";
 
 type DisplayLevel = "SAFE" | "WARNING" | "BLOCKED";
 
@@ -15,13 +16,6 @@ type LookupResult = {
   notes?: string;
   message?: string;
 };
-
-const defaultApiUrl =
-  import.meta.env.DEV || window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-    ? "http://localhost:4000"
-    : window.location.origin;
-const rawApiUrl = import.meta.env.VITE_API_URL?.trim() || defaultApiUrl;
-const apiBase = rawApiUrl.replace(/\/api\/v1\/?$/i, "").replace(/\/$/, "");
 
 const defaultPartnersBannerSrc =
   "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=2400&h=1200&fit=crop&q=85";
@@ -1693,7 +1687,7 @@ export default function App() {
     setSharedResult(null);
     void (async () => {
       try {
-        const res = await fetch(`${apiBase}/api/v1/shares/${encodeURIComponent(shareToken)}`, {
+        const res = await fetch(apiUrl(`/api/v1/shares/${encodeURIComponent(shareToken)}`), {
           cache: "no-store",
         });
         const text = await res.text();
@@ -1775,19 +1769,18 @@ export default function App() {
       } else {
         params.set("serial", trimmed);
       }
-      const res = await fetch(
-        `${apiBase}/api/v1/devices/lookup?${params.toString()}`,
-        { method: "GET", cache: "no-store" },
-      );
+      const res = await fetch(apiUrl(`/api/v1/devices/lookup?${params.toString()}`), {
+        method: "GET",
+        cache: "no-store",
+      });
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || `Request failed (${res.status})`);
+        throw new Error(await readApiError(res));
       }
       const data = (await res.json()) as LookupResult;
       setCheckModalOpen(false);
       goToResultPage(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Lookup failed");
+      setError(formatFetchError(err));
     } finally {
       setLoading(false);
     }
@@ -1831,7 +1824,7 @@ export default function App() {
     setShareNotice(null);
     setShareLinkError(null);
     try {
-      const res = await fetch(`${apiBase}/api/v1/shares`, {
+      const res = await fetch(apiUrl("/api/v1/shares"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ payload }),
