@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { apiUrl, formatFetchError, readApiError } from "./api";
+import { ContactPage } from "./ContactPage";
 
 type DisplayLevel = "SAFE" | "WARNING" | "BLOCKED";
 
@@ -981,11 +982,7 @@ function HomeTrustSection({ onCheckNow }: { onCheckNow: () => void }) {
 }
 
 function AlloCertifiedSection({ shopUrl }: { shopUrl: string }) {
-  const features = [
-    "Warranty included on every certified device",
-    "Built-in AlloCheck verification before you buy",
-    "Genuine phones from the Allo retail network",
-  ] as const;
+  const paymentPlans = ["Daily", "Weekly", "Biweekly"] as const;
 
   return (
     <section className={`bg-gradient-to-b from-brand-mist/60 via-brand-mist/25 to-white ${homeSectionX} ${homeSectionY}`}>
@@ -994,19 +991,18 @@ function AlloCertifiedSection({ shopUrl }: { shopUrl: string }) {
           <div className="order-2 lg:order-1">
             <p className={brandEyebrow}>Allo Certified</p>
             <h2 className={`mt-3 text-balance text-2xl sm:text-3xl lg:text-4xl ${brandHeading}`}>
-              Instead of Worrying, Buy Certified Hardware
+              Want a phone you can trust from day one?
             </h2>
             <p className={`mt-4 text-pretty text-sm leading-relaxed sm:text-base ${brandBody}`}>
-              Every device passes verification in the AlloCheck registry—backed by warranty and the Allo
-              network.
+              Every phone on Allo is AlloCheck verified, certified, and backed by a 6-month warranty.
             </p>
             <ul className="mt-8 space-y-4">
-              {features.map((item) => (
-                <li key={item} className="flex gap-3 text-sm text-brand-ink">
+              {paymentPlans.map((plan) => (
+                <li key={plan} className="flex gap-3 text-sm text-brand-ink">
                   <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-tint via-white to-brand-mist text-brand shadow-sm ring-1 ring-brand/15">
                     <CheckIcon className="h-3.5 w-3.5" />
                   </span>
-                  <span className="pt-0.5">{item}</span>
+                  <span className="pt-0.5">{plan} payment</span>
                 </li>
               ))}
             </ul>
@@ -1016,7 +1012,7 @@ function AlloCertifiedSection({ shopUrl }: { shopUrl: string }) {
               rel="noopener noreferrer"
               className={`${btnPartnerCta} mt-8`}
             >
-              Buy Certified Phones
+              Buy Certified
               <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
             </a>
           </div>
@@ -1075,7 +1071,7 @@ function AlloBusinessSection() {
                 </li>
               ))}
             </ul>
-            <a href="mailto:partners@allo.example" className={`${btnPartnerCta} mt-8`}>
+            <a href="#/contact" className={`${btnPartnerCta} mt-8`}>
               Become a Partner
               <ArrowRight className="h-5 w-5 transition group-hover:translate-x-0.5" />
             </a>
@@ -1251,12 +1247,12 @@ function CheckTrustBadges({ className = "" }: { className?: string }) {
         <span className={`truncate ${labelClass}`}>Real-time Verification</span>
       </div>
       <div className={heroTrustPill}>
-        <span
-          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full sm:h-5 sm:w-5 ${iconClass}`}
-        >
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600 shadow-sm ring-1 ring-red-200 sm:h-5 sm:w-5">
           <CheckIcon className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
         </span>
-        <span className={`truncate ${labelClass}`}>Trusted Global Registry</span>
+        <span className="truncate text-[0.65rem] font-bold leading-tight text-red-600 sm:text-xs">
+          Fraud Protection
+        </span>
       </div>
     </div>
   );
@@ -1550,41 +1546,6 @@ function LegalPageContent({ route, onHome }: { route: LegalRouteKind; onHome: ()
           </p>
         </LegalPageLayout>
       );
-    case "contact":
-      return (
-        <LegalPageLayout title="Contact" onHome={onHome}>
-          <p>For general inquiries about AlloCheck, reach our team at:</p>
-          <p>
-            <a
-              href="mailto:support@allo.example"
-              className="font-semibold text-brand underline-offset-2 hover:underline"
-            >
-              support@allo.example
-            </a>
-          </p>
-          <p>For partnership and API access:</p>
-          <p>
-            <a
-              href="mailto:partners@allo.example"
-              className="font-semibold text-brand underline-offset-2 hover:underline"
-            >
-              partners@allo.example
-            </a>
-          </p>
-          <p>
-            Visit{" "}
-            <a
-              href={alloShopUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-semibold text-brand underline-offset-2 hover:underline"
-            >
-              Allo
-            </a>{" "}
-            for certified devices and retail support.
-          </p>
-        </LegalPageLayout>
-      );
     case "api-docs":
       return (
         <LegalPageLayout title="API documentation" onHome={onHome}>
@@ -1665,6 +1626,14 @@ export default function App() {
         setResultPayload(readStoredResult());
       } else if (route.kind === "home") {
         setResultPayload(null);
+      } else if (
+        route.kind === "contact" ||
+        route.kind === "about" ||
+        route.kind === "privacy" ||
+        route.kind === "terms" ||
+        route.kind === "api-docs"
+      ) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
       }
     };
     sync();
@@ -1860,11 +1829,21 @@ export default function App() {
     openCheckModal();
   }
 
+  if (appRoute.kind === "contact") {
+    return (
+      <div className={pageShell}>
+        <AppHeader onLogoClick={goHome} onCheckPhone={handleCheckPhoneNav} />
+        <ContactPage onClose={goHome} defaultInquiryType="business_owner" />
+        <AppFooter />
+        {checkPhoneModal}
+      </div>
+    );
+  }
+
   if (
     appRoute.kind === "about" ||
     appRoute.kind === "privacy" ||
     appRoute.kind === "terms" ||
-    appRoute.kind === "contact" ||
     appRoute.kind === "api-docs"
   ) {
     return (

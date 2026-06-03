@@ -11,6 +11,7 @@ import { LookupService } from "./lookup.js";
 import { seedIfEmpty } from "./seed.js";
 import { devicesRouter } from "./routes/devices.js";
 import { healthRouter } from "./routes/health.js";
+import { contactRouter } from "./routes/contact.js";
 import { sharesRouter } from "./routes/shares.js";
 
 const PORT = Number(process.env.PORT) || 4000;
@@ -55,6 +56,7 @@ async function main(): Promise<void> {
   api.use("/health", healthRouter());
   api.use("/devices", devicesRouter(lookup));
   api.use("/shares", sharesRouter(db));
+  api.use("/contact", contactRouter(db));
   app.use("/api/v1", api);
 
   app.get("/config.json", (_req, res) => {

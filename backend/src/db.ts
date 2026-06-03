@@ -36,6 +36,21 @@ CREATE TABLE IF NOT EXISTS lookup_result_shares (
 );
 
 CREATE INDEX IF NOT EXISTS idx_lookup_result_shares_expires ON lookup_result_shares(expires_at);
+
+CREATE TABLE IF NOT EXISTS contact_submissions (
+  id TEXT PRIMARY KEY,
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  company_name TEXT,
+  email TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  inquiry_type TEXT NOT NULL,
+  message TEXT NOT NULL,
+  marketing_opt_in BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_contact_submissions_created ON contact_submissions(created_at);
 `;
 
 export function createDbPool(connectionString: string): Pool {
@@ -45,6 +60,14 @@ export function createDbPool(connectionString: string): Pool {
   });
 }
 
+const MIGRATIONS = `
+ALTER TABLE contact_submissions
+  ADD COLUMN IF NOT EXISTS company_name TEXT;
+ALTER TABLE contact_submissions
+  ALTER COLUMN company_name DROP NOT NULL;
+`;
+
 export async function initDb(pool: Pool): Promise<void> {
   await pool.query(SCHEMA);
+  await pool.query(MIGRATIONS);
 }
